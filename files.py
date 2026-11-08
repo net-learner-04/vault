@@ -22,7 +22,7 @@ from db import get_db
 from models import Users, Files, SharedLinks
 from schemas import (
     FolderCreate, FileRename, FileMoveBody, FileCopyBody, ShareCreate,
-    BatchDeleteBody, FileOut, SharedLinkOut,
+    BatchDeleteBody, BatchMoveBody, FileOut, SharedLinkOut,
 )
 
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -192,7 +192,7 @@ async def upload_file(
     file_type = file.content_type or mimetypes.guess_type(original_name)[0] or "application/octet-stream"
 
     db_file = Files(
-        file_name=original_name,
+        file_name=os.path.basename(file_path),
         file_path=file_path,
         file_size=size,
         file_owner=current_user.id,
@@ -204,7 +204,7 @@ async def upload_file(
     )
     db.add(db_file)
     db.commit()
-    return {"id": db_file.id, "filename": original_name, "size": size}
+    return {"id": db_file.id, "filename": os.path.basename(file_path), "size": size}
 
 
 @router.patch("/rename/{file_id}")
@@ -218,7 +218,7 @@ def rename_file(
     parent_dir = os.path.dirname(file.file_path)
     new_path = _unique_path(os.path.join(parent_dir, body.new_name.strip()))
     os.rename(file.file_path, new_path)
-    file.file_name = body.new_name.strip()
+    file.file_name = os.path.basename(new_path)
     file.file_path = new_path
     db.commit()
     return {"message": "Renamed successfully."}
@@ -240,7 +240,7 @@ def create_folder(
     os.makedirs(folder_path, exist_ok=True)
 
     db_folder = Files(
-        file_name=name,
+        file_name=os.path.basename(folder_path),
         file_path=folder_path,
         file_size=0,
         file_owner=current_user.id,
@@ -342,7 +342,29 @@ def move_file(
     new_path = _unique_path(os.path.join(new_dir, file.file_name))
     shutil.move(file.file_path, new_path)
     file.file_path = new_path
+    file.file_name = os.path.basename(new_path)
     file.parent_id = body.new_parent_id
+    db.commit()
+    return {"message": "Moved successfully."}
+
+
+@router.patch("/batch-move")
+def batch_move(
+    body: BatchMoveBody,
+    db: Session = Depends(get_db),
+    current_user: Users = Depends(get_current_user)
+):
+    for file_id in body.file_ids:
+        file = _get_owned_file(db, file_id, current_user)
+        if body.new_parent_id:
+            new_dir = _get_owned_folder(db, body.new_parent_id, current_user).file_path
+        else:
+            new_dir = current_user.storage_path
+        new_path = _unique_path(os.path.join(new_dir, file.file_name))
+        shutil.move(file.file_path, new_path)
+        file.file_path = new_path
+        file.file_name = os.path.basename(new_path)
+        file.parent_id = body.new_parent_id
     db.commit()
     return {"message": "Moved successfully."}
 
@@ -358,7 +380,7 @@ def _copy_tree(db: Session, file: Files, new_parent_id, user: Users):
     if file.is_folder:
         os.makedirs(new_path, exist_ok=True)
         new_row = Files(
-            file_name=file.file_name, file_path=new_path, file_size=0,
+            file_name=os.path.basename(new_path), file_path=new_path, file_size=0,
             file_owner=user.id, file_type="folder", is_folder=True,
             parent_id=new_parent_id, create_date=datetime.now()
         )
@@ -373,7 +395,7 @@ def _copy_tree(db: Session, file: Files, new_parent_id, user: Users):
 
     shutil.copy2(file.file_path, new_path)
     new_row = Files(
-        file_name=file.file_name, file_path=new_path, file_size=file.file_size,
+        file_name=os.path.basename(new_path), file_path=new_path, file_size=file.file_size,
         file_owner=user.id, file_type=file.file_type, is_folder=False,
         parent_id=new_parent_id, create_date=datetime.now(), enc_iv=file.enc_iv
     )

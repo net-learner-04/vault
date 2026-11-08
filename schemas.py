@@ -194,6 +194,11 @@ class BatchDeleteBody(BaseModel):
     file_ids: list[int]
 
 
+class BatchMoveBody(BaseModel):
+    file_ids: list[int]
+    new_parent_id: Optional[int] = None
+
+
 class FileOut(BaseModel):
     id: int
     file_name: str

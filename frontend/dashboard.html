@@ -31,6 +31,7 @@
         </div>
         <button class="win-btn" id="btnNewFolder">New Folder</button>
         <button class="win-btn" id="btnUpload">Upload</button>
+        <button class="win-btn" id="btnSelect">Select</button>
         <button class="win-btn win-btn-icon" id="btnView" title="Toggle grid/list view">▤</button>
         <button class="win-btn win-btn-icon" id="btnRefresh" title="Refresh">⟳</button>
       </div>
@@ -54,6 +55,12 @@
         <main class="content" id="content">
           <div class="content-head">
             <div class="crumbs" id="crumbs"></div>
+          </div>
+          <div id="selectionBar" style="display:none;align-items:center;gap:8px;margin-bottom:8px;">
+            <span id="selCount" style="font-size:13px;">0 selected</span>
+            <button class="win-btn win-btn-sm" onclick="batchDeleteSelected()">Delete</button>
+            <button class="win-btn win-btn-sm" onclick="openBatchMove()">Move</button>
+            <button class="win-btn win-btn-sm" onclick="exitSelectMode()">Cancel</button>
           </div>
           <div id="fileList" class="file-grid"></div>
         </main>
@@ -207,6 +214,7 @@
   let breadcrumb = [];
   let files = [];
   let selected = new Set();
+  let selectMode = false;
   let ctxFile = null;
   let confirmCallback = null;
   let moveAction = "move";
@@ -217,8 +225,21 @@
 
   // ---- Modal helpers ------------------------------------------------------
   function openModal(id) { qs("#" + id).classList.add("open"); }
-  function closeModal(id) { qs("#" + id).classList.remove("open"); }
-  function closeAllModals() { qsa(".modal-overlay").forEach(m => m.classList.remove("open")); }
+  function closeModal(id) {
+    if (id === "previewModal") stopPreview();
+    qs("#" + id).classList.remove("open");
+  }
+  function closeAllModals() {
+    stopPreview();
+    qsa(".modal-overlay").forEach(m => m.classList.remove("open"));
+  }
+  function stopPreview() {
+    const body = qs("#previewBody");
+    if (!body) return;
+    const video = body.querySelector("video");
+    if (video) { video.pause(); video.removeAttribute("src"); video.load(); }
+    body.innerHTML = "";
+  }
   function toggleSidebar(force) {
     const sb = qs("#sidebar");
     const show = force !== undefined ? force : !sb.classList.contains("open");
@@ -248,7 +269,7 @@
   function setMode(m) {
     mode = m;
     qsa(".menu-item[data-mode]").forEach(b => b.classList.toggle("active", b.dataset.mode === m));
-    selected.clear();
+    resetSelection();
     currentFolderId = null;
     breadcrumb = [];
     if (m === "admin") renderAdmin();
@@ -292,7 +313,7 @@
 
   function fileTileHtml(f) {
     const meta = f.is_folder ? "Folder" : formatSize(f.file_size);
-    return `<div class="file-tile" onclick="openFile(${f.id})" oncontextmenu="openCtx(event, ${f.id})">
+    return `<div class="file-tile${selected.has(f.id) ? " selected" : ""}" data-id="${f.id}" onclick="onItemClick(${f.id})" oncontextmenu="openCtx(event, ${f.id})">
       <div class="file-thumb">${f.is_folder ? "DIR" : fileIconLabel(f.file_type)}</div>
       <div class="file-name">${escapeHtml(f.file_name)}${f.is_starred ? " *" : ""}</div>
       <div class="file-meta">${meta}</div>
@@ -301,7 +322,7 @@
 
   function fileRowHtml(f) {
     const meta = f.is_folder ? "Folder" : formatSize(f.file_size);
-    return `<div class="file-row" onclick="openFile(${f.id})" oncontextmenu="openCtx(event, ${f.id})">
+    return `<div class="file-row${selected.has(f.id) ? " selected" : ""}" data-id="${f.id}" onclick="onItemClick(${f.id})" oncontextmenu="openCtx(event, ${f.id})">
       <div class="file-thumb">${f.is_folder ? "DIR" : fileIconLabel(f.file_type)}</div>
       <div class="file-name">${escapeHtml(f.file_name)}${f.is_starred ? " *" : ""}</div>
       <div class="file-meta">${meta}</div>
@@ -359,16 +380,18 @@
     const f = files.find(x => x.id === id);
     breadcrumb.push({id, name: f ? f.file_name : ""});
     currentFolderId = id;
+    resetSelection();
     loadFiles();
   }
   function goUp() {
     if (mode !== "drive" || !breadcrumb.length) return;
     breadcrumb.pop();
     currentFolderId = breadcrumb.length ? breadcrumb[breadcrumb.length - 1].id : null;
+    resetSelection();
     loadFiles();
   }
-  function goRoot() { breadcrumb = []; currentFolderId = null; loadFiles(); }
-  function jumpTo(i) { breadcrumb = breadcrumb.slice(0, i + 1); currentFolderId = breadcrumb[i].id; loadFiles(); }
+  function goRoot() { breadcrumb = []; currentFolderId = null; resetSelection(); loadFiles(); }
+  function jumpTo(i) { breadcrumb = breadcrumb.slice(0, i + 1); currentFolderId = breadcrumb[i].id; resetSelection(); loadFiles(); }
 
   // ---- Open / preview / download -----------------------------------------
   function openFile(id) {
@@ -399,6 +422,56 @@
     localStorage.setItem("vault_view", view);
     qs("#btnView").textContent = view === "grid" ? "▤" : "▦";
     renderFiles();
+  }
+
+  // ---- Selection ----------------------------------------------------------
+  function resetSelection() {
+    selectMode = false;
+    selected.clear();
+    qs("#btnSelect").textContent = "Select";
+    const bar = qs("#selectionBar");
+    if (bar) bar.style.display = "none";
+  }
+  function enterSelectMode() {
+    selectMode = true;
+    qs("#btnSelect").textContent = "Done";
+    updateSelectionBar();
+  }
+  function exitSelectMode() {
+    resetSelection();
+    renderFiles();
+  }
+  function onItemClick(id) {
+    if (selectMode) { toggleSelect(id); return; }
+    openFile(id);
+  }
+  function toggleSelect(id) {
+    if (selected.has(id)) selected.delete(id); else selected.add(id);
+    const el = qs(`[data-id="${id}"]`);
+    if (el) el.classList.toggle("selected", selected.has(id));
+    updateSelectionBar();
+  }
+  function updateSelectionBar() {
+    const bar = qs("#selectionBar");
+    if (!selected.size) { bar.style.display = "none"; return; }
+    bar.style.display = "flex";
+    qs("#selCount").textContent = `${selected.size} selected`;
+  }
+  async function batchDeleteSelected() {
+    const ids = Array.from(selected);
+    if (!ids.length) return;
+    confirmText(`Delete ${ids.length} item(s)?`, async () => {
+      const res = await apiFetch("/api/file/batch-delete", {method: "DELETE", body: JSON.stringify({file_ids: ids})});
+      if (res && res.ok) { toast("Moved to trash.", "success"); exitSelectMode(); loadFiles(); }
+    });
+  }
+  async function openBatchMove() {
+    moveAction = "batch-move";
+    qs("#moveTitle").textContent = "Move selected";
+    qs("#moveSubmitBtn").textContent = "Move Here";
+    hideAlert(qs("#moveAlert"));
+    await loadFolderOptions();
+    openModal("moveModal");
   }
 
   // ---- Stats --------------------------------------------------------------
@@ -554,6 +627,15 @@
   async function submitMove() {
     const target = qs("#moveTarget").value;
     const newParentId = target === "" ? null : parseInt(target, 10);
+    if (moveAction === "batch-move") {
+      const res = await apiFetch("/api/file/batch-move", {
+        method: "PATCH",
+        body: JSON.stringify({file_ids: Array.from(selected), new_parent_id: newParentId})
+      });
+      if (res && res.ok) { closeModal("moveModal"); toast("Moved.", "success"); exitSelectMode(); loadFiles(); }
+      else { const d = await res.json(); showAlert(qs("#moveAlert"), d.detail || "Failed."); }
+      return;
+    }
     const res = await apiFetch(`/api/file/${moveAction}`, {
       method: moveAction === "move" ? "PATCH" : "POST",
       body: JSON.stringify({file_id: moveFileId, new_parent_id: newParentId})
@@ -784,6 +866,7 @@
     qs("#btnUp").addEventListener("click", goUp);
     qs("#btnNewFolder").addEventListener("click", openNewFolder);
     qs("#btnUpload").addEventListener("click", openUpload);
+    qs("#btnSelect").addEventListener("click", () => { if (selectMode) exitSelectMode(); else enterSelectMode(); });
     qs("#btnView").addEventListener("click", toggleView);
     qs("#btnRefresh").addEventListener("click", () => { if (mode === "admin") renderAdmin(); else loadFiles(); });
     qs("#searchInput").addEventListener("input", onSearchInput);

@@ -92,15 +92,16 @@ select.win-select { background: var(--white); }
 .win-fieldset {
   border: none;
   box-shadow: inset -1px -1px 0 var(--white), inset 1px 1px 0 var(--shadow);
-  padding: 16px 11px 11px;
-  margin: 0 0 12px;
+  padding: 22px 11px 12px;
+  margin: 0 0 14px;
   position: relative;
 }
 .win-fieldset > legend {
   position: absolute;
-  top: 2px;
+  top: 0;
   left: 8px;
-  padding: 0 4px;
+  padding: 0 6px;
+  background: var(--face);
   font-size: 13px;
   color: var(--text);
 }
