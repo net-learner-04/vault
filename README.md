@@ -1,77 +1,77 @@
 # Vault
 
-개인용 셀프호스팅 클라우드 드라이브. Windows 98 레트로 UI + 사용자별 파일 암호화.
+A self-hosted private cloud drive with a Windows 98 retro UI and per-user file encryption.
 
 ---
 
-## 주요 기능
+## Features
 
-- 파일 업로드 / 다운로드 / 미리보기 (이미지·영상·PDF·텍스트)
-- **사용자별 암호화** — 관리자라도 다른 사용자 파일 열람 불가
-- 폴더 생성·이름변경·이동·복사, 폴더 ZIP 다운로드
-- 즐겨찾기, 휴지통(30일), 공유 링크, 검색, 다중 선택
-- 관리자 콘솔 (계정 요청 승인/거절, 사용자 관리)
-
----
-
-## 사전 준비
-
-1. **DuckDNS** 도메인 + 토큰 확보 (예: `vault.duckdns.org`)
-2. **공유기 포트포워딩**: 80, 443 → 서버 IP
-3. 서버에 Docker + Docker Compose 설치
+- Upload / download / preview (images, video, PDF, text)
+- **Per-user encryption** — even an admin cannot read other users' files
+- Folders: create, rename, move, copy, download as ZIP
+- Starred files, trash (30-day), share links, search, multi-select
+- Admin console (approve/reject account requests, manage users)
 
 ---
 
-## 설치 (Rocky Linux 기준)
+## Prerequisites
+
+1. A **DuckDNS** domain + token (e.g. `vault.duckdns.org`)
+2. **Port forwarding** on your router: 80, 443 → server IP
+3. Docker + Docker Compose installed on the server
+
+---
+
+## Install (Rocky Linux)
 
 ```bash
-# 1) Docker CE 설치 (Rocky 9은 dnf의 docker가 Podman이라 공식 repo로 설치)
+# 1) Install Docker CE (Rocky 9's dnf "docker" is Podman, so use the official repo)
 sudo dnf install -y dnf-plugins-core
 sudo dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
 sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 sudo systemctl enable --now docker
 
-# 2) 코드 받기
+# 2) Clone
 cd ~
 git clone https://github.com/net-learner-04/vault.git
 cd vault
 
-# 3) 환경설정
+# 3) Configure
 cp .env.example .env
-nano .env        # 아래 표 참고해서 값 입력
+nano .env        # fill in the values from the table below
 
-# 4) 실행
+# 4) Run
 docker compose up -d --build
 ```
 
-접속: `https://vault.duckdns.org`
+Access: `https://vault.duckdns.org`
 
-관리자 로그인: `.env`의 `ADMIN_EMAIL` + `ADMIN_PASSWORD`
-
----
-
-## .env 설정
-
-`.env.example`을 복사해서 사용하면 됩니다.
-
-| 변수 | 필수 | 설명 |
-|------|------|------|
-| `SECRET_KEY` | ✅ | JWT 서명용 랜덤값 (`openssl rand -hex 32`) |
-| `RECOVERY_KEY` | ⚠️ | 비번찾기 복구용 (없으면 `SECRET_KEY`로 대체) |
-| `ADMIN_PASSWORD` | ✅ | 관리자 비밀번호 |
-| `ADMIN_EMAIL` | ✅ | 관리자 로그인 이메일 |
-| `DATABASE_URL` | ✅ | Docker는 `sqlite:////data/vault.db` 그대로 |
-| `UPLOAD_DIR` | ✅ | Docker는 `/data/uploads` 그대로 |
-| `SENDGRID_API_KEY` | ❌ | 비번찾기 메일용 (안 써도 됨) |
-| `MAIL_FROM` | ❌ | 발신 이메일 |
-| `DUCKDNS_DOMAIN` | ✅ | 예: `vault.duckdns.org` |
-| `DUCKDNS_SUBDOMAINS` | ✅ | 예: `vault` |
-| `DUCKDNS_TOKEN` | ✅ | DuckDNS 토큰 |
-| `TZ` | ❌ | 시간대 (예: `Asia/Seoul`) |
+Admin login: `ADMIN_EMAIL` + `ADMIN_PASSWORD` from `.env`
 
 ---
 
-## 업데이트
+## .env settings
+
+Copy `.env.example` and fill in the values.
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `SECRET_KEY` | ✅ | Random value for JWT signing (`openssl rand -hex 32`) |
+| `RECOVERY_KEY` | ⚠️ | Recovery key for password reset (falls back to `SECRET_KEY`) |
+| `ADMIN_PASSWORD` | ✅ | Admin password |
+| `ADMIN_EMAIL` | ✅ | Admin login email |
+| `DATABASE_URL` | ✅ | Keep `sqlite:////data/vault.db` for Docker |
+| `UPLOAD_DIR` | ✅ | Keep `/data/uploads` for Docker |
+| `SENDGRID_API_KEY` | ❌ | For password-reset emails (optional) |
+| `MAIL_FROM` | ❌ | Sender email |
+| `DUCKDNS_DOMAIN` | ✅ | e.g. `vault.duckdns.org` |
+| `DUCKDNS_SUBDOMAINS` | ✅ | e.g. `vault` |
+| `DUCKDNS_TOKEN` | ✅ | DuckDNS token |
+| `TZ` | ❌ | Timezone (e.g. `Asia/Seoul`) |
+
+---
+
+## Update
 
 ```bash
 cd ~/vault
@@ -81,31 +81,31 @@ docker compose up -d --build
 
 ---
 
-## 자주 쓰는 명령어
+## Common commands
 
 ```bash
-docker compose ps        # 상태 확인
-docker compose logs -f   # 로그
-docker compose down      # 중지
-docker compose up -d     # 시작
+docker compose ps        # status
+docker compose logs -f   # logs
+docker compose down      # stop
+docker compose up -d     # start
 ```
 
 ---
 
-## 프로젝트 구조 (간단히)
+## Project structure (brief)
 
 ```
 vault/
-├── main.py           # 진입점
-├── users.py          # 계정 API
-├── files.py          # 파일 API
-├── admin.py          # 관리자 API
-├── crypto.py         # 파일 암호화
-├── frontend/         # HTML/CSS/JS (Win98 테마)
-│   └── icon/         # 아이콘
+├── main.py           # entry point
+├── users.py          # account API
+├── files.py          # file API
+├── admin.py          # admin API
+├── crypto.py         # file encryption
+├── frontend/         # HTML/CSS/JS (Windows 98 theme)
+│   └── icon/         # icons
 ├── docker-compose.yml
-├── Caddyfile         # 자동 HTTPS
+├── Caddyfile         # automatic HTTPS
 └── .env.example
 ```
 
-자세한 API는 실행 후 `https://vault.duckdns.org/docs` 에서 확인 가능.
+Interactive API docs: `https://vault.duckdns.org/docs`
