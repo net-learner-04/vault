@@ -1,0 +1,42 @@
+services:
+  vault:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # Docker-specific overrides (these win over .env values)
+      - UPLOAD_DIR=/data/uploads
+      - DATABASE_URL=sqlite:////data/vault.db
+    volumes:
+      - vault_data:/data
+    expose:
+      - "8000"
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - DOMAIN=${DUCKDNS_DOMAIN:-vault.duckdns.org}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - vault
+
+  duckdns:
+    image: lscr.io/linuxserver/duckdns:latest
+    restart: unless-stopped
+    environment:
+      - TZ=${TZ:-Asia/Seoul}
+      - SUBDOMAINS=${DUCKDNS_SUBDOMAINS:-vault}
+      - TOKEN=${DUCKDNS_TOKEN}
+      - LOG_FILE=false
+
+volumes:
+  vault_data:
+  caddy_data:
+  caddy_config:

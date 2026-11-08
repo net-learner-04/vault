@@ -111,6 +111,39 @@ The admin account is created automatically on first startup using the credential
 
 ---
 
+## Docker Deployment (recommended)
+
+### 1. Prerequisites
+- A DuckDNS domain (e.g. `vault.duckdns.org`) with its token.
+- Ports **80** and **443** forwarded on your router to this server.
+- Docker + Docker Compose installed on the server.
+
+### 2. Prepare environment
+```bash
+cp .env.example .env
+# edit .env: fill SECRET_KEY, ADMIN_PASSWORD, DUCKDNS_TOKEN, etc.
+```
+
+### 3. Start
+```bash
+docker compose up -d --build
+```
+
+Three containers run together:
+- `vault` — the FastAPI app (SQLite + uploads kept in the `vault_data` volume)
+- `caddy` — reverse proxy with automatic HTTPS (Let's Encrypt)
+- `duckdns` — keeps the dynamic DNS record up to date
+
+### DuckDNS without Docker (host cron)
+```bash
+chmod +x duckdns.sh
+crontab -e
+# add this line (updates every 5 minutes):
+*/5 * * * * /home/<user>/vault/duckdns.sh >/dev/null 2>&1
+```
+
+---
+
 ## Running with systemd
 
 Create `/etc/systemd/system/vault.service`:
