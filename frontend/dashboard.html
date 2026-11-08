@@ -314,7 +314,7 @@
   function fileTileHtml(f) {
     const meta = f.is_folder ? "Folder" : formatSize(f.file_size);
     return `<div class="file-tile${selected.has(f.id) ? " selected" : ""}" data-id="${f.id}" onclick="onItemClick(${f.id})" oncontextmenu="openCtx(event, ${f.id})">
-      <div class="file-thumb">${f.is_folder ? "DIR" : fileIconLabel(f.file_type)}</div>
+      <div class="file-thumb">${fileIcon(f.file_type, f.is_folder, 32)}</div>
       <div class="file-name">${escapeHtml(f.file_name)}${f.is_starred ? " *" : ""}</div>
       <div class="file-meta">${meta}</div>
     </div>`;
@@ -323,7 +323,7 @@
   function fileRowHtml(f) {
     const meta = f.is_folder ? "Folder" : formatSize(f.file_size);
     return `<div class="file-row${selected.has(f.id) ? " selected" : ""}" data-id="${f.id}" onclick="onItemClick(${f.id})" oncontextmenu="openCtx(event, ${f.id})">
-      <div class="file-thumb">${f.is_folder ? "DIR" : fileIconLabel(f.file_type)}</div>
+      <div class="file-thumb">${fileIcon(f.file_type, f.is_folder, 18)}</div>
       <div class="file-name">${escapeHtml(f.file_name)}${f.is_starred ? " *" : ""}</div>
       <div class="file-meta">${meta}</div>
       <div class="file-meta">${formatDate(f.create_date)}</div>
@@ -335,7 +335,7 @@
     if (!files.length) { list.innerHTML = emptyHtml(); qs("#statusItems").textContent = "0 items"; return; }
     list.innerHTML = files.map(f => `
       <div class="file-row">
-        <div class="file-thumb">${f.is_folder ? "DIR" : fileIconLabel(f.file_type)}</div>
+        <div class="file-thumb">${fileIcon(f.file_type, f.is_folder, 18)}</div>
         <div class="file-name">${escapeHtml(f.file_name)}</div>
         <div class="file-meta">${formatSize(f.file_size)}</div>
         <div class="file-meta">${formatDate(f.deleted_at || f.create_date)}</div>

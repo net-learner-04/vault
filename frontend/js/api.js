@@ -57,6 +57,23 @@ function fileIconLabel(type) {
   return "FILE";
 }
 
+// Returns an <img> for the file type. If the matching icon file does not
+// exist yet, the <img> fails and falls back to a text label (DIR/IMG/...).
+// Icons live in frontend/: directory.png, image.png, video.png, sound.png,
+// pdf.png, zip.png, text.png, unknown.png
+function fileIcon(type, isFolder, size) {
+  const label = isFolder ? "DIR" : fileIconLabel(type);
+  let src = "unknown.png";
+  if (isFolder) src = "directory.png";
+  else if (type && type.startsWith("image/")) src = "image.png";
+  else if (type && type.startsWith("video/")) src = "video.png";
+  else if (type && type.startsWith("audio/")) src = "sound.png";
+  else if (type && type.includes("pdf")) src = "pdf.png";
+  else if (type && (type.includes("zip") || type.includes("tar") || type.includes("gz"))) src = "zip.png";
+  else if (type && (type.includes("text") || type.includes("json"))) src = "text.png";
+  return `<img src="${src}" alt="${label}" onerror="this.outerHTML='${label}'" style="width:${size}px;height:${size}px;object-fit:contain;"/>`;
+}
+
 function escapeHtml(s) {
   return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
