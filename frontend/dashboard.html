@@ -29,21 +29,21 @@
         <div class="addressbar">
           <input class="win-input" id="searchInput" placeholder="Search files..."/>
         </div>
-        <button class="win-btn" id="btnNewFolder">📁 <span class="hide-mobile">New Folder</span></button>
-        <button class="win-btn" id="btnUpload">⬆ <span class="hide-mobile">Upload</span></button>
+        <button class="win-btn" id="btnNewFolder">New Folder</button>
+        <button class="win-btn" id="btnUpload">Upload</button>
         <button class="win-btn win-btn-icon" id="btnView" title="Toggle grid/list view">▤</button>
         <button class="win-btn win-btn-icon" id="btnRefresh" title="Refresh">⟳</button>
       </div>
 
       <div class="app-body">
         <aside class="sidebar" id="sidebar">
-          <button class="menu-item active" data-mode="drive"><span class="mi-icon">💾</span> My Drive</button>
-          <button class="menu-item" data-mode="starred"><span class="mi-icon">⭐</span> Starred</button>
-          <button class="menu-item" data-mode="trash"><span class="mi-icon">🗑️</span> Trash</button>
-          <button class="menu-item" data-mode="shares"><span class="mi-icon">🔗</span> Shared Links</button>
+          <button class="menu-item active" data-mode="drive">My Drive</button>
+          <button class="menu-item" data-mode="starred">Starred</button>
+          <button class="menu-item" data-mode="trash">Trash</button>
+          <button class="menu-item" data-mode="shares">Shared Links</button>
           <div class="menu-sep"></div>
-          <button class="menu-item" data-mode="admin" id="navAdmin" style="display:none;"><span class="mi-icon">⚙️</span> Admin</button>
-          <button class="menu-item" data-mode="settings"><span class="mi-icon">👤</span> Settings</button>
+          <button class="menu-item" data-mode="admin" id="navAdmin" style="display:none;">Admin</button>
+          <button class="menu-item" data-mode="settings">Settings</button>
           <div class="menu-storage">
             <div>Storage</div>
             <div class="storage-bar"><div id="storageBarFill" style="width:0%"></div></div>
@@ -118,7 +118,7 @@
             <label>Shareable link</label>
             <input class="win-input" id="shareUrl" readonly onfocus="this.select()"/>
           </div>
-          <button class="win-btn win-btn-sm" onclick="navigator.clipboard.writeText(document.getElementById('shareUrl').value)">📋 Copy</button>
+          <button class="win-btn win-btn-sm" onclick="navigator.clipboard.writeText(document.getElementById('shareUrl').value)">Copy</button>
         </div>
       </div>
       <div class="modal-footer"><button class="win-btn" onclick="closeModal('shareModal')">Close</button><button class="win-btn win-btn-primary" id="shareCreateBtn" onclick="submitShare()">Create Link</button></div>
@@ -130,7 +130,7 @@
       <div class="modal-header"><span class="title-text" id="previewTitle">Preview</span><button class="win-title-btn" onclick="closeModal('previewModal')">✕</button></div>
       <div class="modal-body" id="previewBody" style="max-height:72vh;overflow:auto;text-align:center;"></div>
       <div class="modal-footer">
-        <a id="previewDownload" class="win-btn" href="#" download>⬇ Download</a>
+        <a id="previewDownload" class="win-btn" href="#" download>Download</a>
         <button class="win-btn" onclick="closeModal('previewModal')">Close</button>
       </div>
     </div>
@@ -149,15 +149,6 @@
     <div class="win-window modal modal-lg">
       <div class="modal-header"><span class="title-text">Account Settings</span><button class="win-title-btn" onclick="closeModal('settingsModal')">✕</button></div>
       <div class="modal-body" style="max-height:70vh;overflow:auto;">
-        <fieldset class="win-fieldset"><legend>Profile image</legend>
-          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-            <img id="profilePreview" src="" alt="" style="width:48px;height:48px;display:none;background:#fff;box-shadow:inset -1px -1px 0 #fff, inset 1px 1px 0 #808080;"/>
-            <input type="file" id="profileFileInput" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none"/>
-            <button class="win-btn win-btn-sm" onclick="document.getElementById('profileFileInput').click()">Upload image</button>
-            <button class="win-btn win-btn-sm" onclick="deleteProfileImage()">Remove</button>
-          </div>
-        </fieldset>
-
         <fieldset class="win-fieldset"><legend>Change username</legend>
           <div class="form-stack">
             <input class="win-input" id="setName" placeholder="New username"/>
@@ -247,7 +238,7 @@
     const res = await apiFetch("/api/user/me");
     if (!res) return;
     user = await res.json();
-    auth.setUser({name: user.name, is_admin: user.is_admin, id: user.id, profile_image: user.profile_image});
+    auth.setUser({name: user.name, is_admin: user.is_admin, id: user.id});
     qs("#winTitle").textContent = `Vault Drive - ${user.name}`;
     qs("#statusUser").textContent = user.name + (user.is_admin ? " (Admin)" : "");
     if (user.is_admin) qs("#navAdmin").style.display = "flex";
@@ -302,8 +293,8 @@
   function fileTileHtml(f) {
     const meta = f.is_folder ? "Folder" : formatSize(f.file_size);
     return `<div class="file-tile" onclick="openFile(${f.id})" oncontextmenu="openCtx(event, ${f.id})">
-      <div class="file-thumb">${f.is_folder ? "📁" : fileEmoji(f.file_type)}</div>
-      <div class="file-name">${escapeHtml(f.file_name)}${f.is_starred ? " ⭐" : ""}</div>
+      <div class="file-thumb">${f.is_folder ? "DIR" : fileIconLabel(f.file_type)}</div>
+      <div class="file-name">${escapeHtml(f.file_name)}${f.is_starred ? " *" : ""}</div>
       <div class="file-meta">${meta}</div>
     </div>`;
   }
@@ -311,8 +302,8 @@
   function fileRowHtml(f) {
     const meta = f.is_folder ? "Folder" : formatSize(f.file_size);
     return `<div class="file-row" onclick="openFile(${f.id})" oncontextmenu="openCtx(event, ${f.id})">
-      <div class="file-thumb">${f.is_folder ? "📁" : fileEmoji(f.file_type)}</div>
-      <div class="file-name">${escapeHtml(f.file_name)}${f.is_starred ? " ⭐" : ""}</div>
+      <div class="file-thumb">${f.is_folder ? "DIR" : fileIconLabel(f.file_type)}</div>
+      <div class="file-name">${escapeHtml(f.file_name)}${f.is_starred ? " *" : ""}</div>
       <div class="file-meta">${meta}</div>
       <div class="file-meta">${formatDate(f.create_date)}</div>
       <div class="file-meta">${f.file_type || ""}</div>
@@ -323,7 +314,7 @@
     if (!files.length) { list.innerHTML = emptyHtml(); qs("#statusItems").textContent = "0 items"; return; }
     list.innerHTML = files.map(f => `
       <div class="file-row">
-        <div class="file-thumb">${f.is_folder ? "📁" : fileEmoji(f.file_type)}</div>
+        <div class="file-thumb">${f.is_folder ? "DIR" : fileIconLabel(f.file_type)}</div>
         <div class="file-name">${escapeHtml(f.file_name)}</div>
         <div class="file-meta">${formatSize(f.file_size)}</div>
         <div class="file-meta">${formatDate(f.deleted_at || f.create_date)}</div>
@@ -339,7 +330,7 @@
     if (!files.length) { list.innerHTML = emptyHtml(); qs("#statusItems").textContent = "0 links"; return; }
     list.innerHTML = files.map(s => `
       <div class="file-row">
-        <div class="file-thumb">🔗</div>
+        <div class="file-thumb">LINK</div>
         <div class="file-name">/shared/${escapeHtml(s.token.slice(0, 10))}…</div>
         <div class="file-meta">expires ${formatDate(s.expire_at)}</div>
         <div class="file-meta"></div>
@@ -354,13 +345,13 @@
 
   function emptyHtml() {
     const map = {
-      drive: ["🗂️", "This folder is empty", "Upload files or create a new folder"],
-      starred: ["⭐", "No starred files", "Star files to find them quickly"],
-      trash: ["🗑️", "Trash is empty", "Deleted files appear here for 30 days"],
-      shares: ["🔗", "No shared links", "Share a file to generate a link"]
+      drive: ["This folder is empty", "Upload files or create a new folder"],
+      starred: ["No starred files", "Star files to find them quickly"],
+      trash: ["Trash is empty", "Deleted files appear here for 30 days"],
+      shares: ["No shared links", "Share a file to generate a link"]
     };
-    const [icon, h, p] = map[mode] || map.drive;
-    return `<div class="empty"><div class="empty-icon">${icon}</div><h3>${h}</h3><p>${p}</p></div>`;
+    const [h, p] = map[mode] || map.drive;
+    return `<div class="empty"><h3>${h}</h3><p>${p}</p></div>`;
   }
 
   // ---- Navigation ---------------------------------------------------------
@@ -453,7 +444,7 @@
     items.push({label: "Delete", act: () => deleteItem(id), danger: true});
 
     const menu = buildCtxMenu();
-    menu.innerHTML = items.map(it => `<button class="menu-item" style="${it.danger ? "color:var(--danger);" : ""}"><span class="mi-icon">•</span>${it.label}</button>`).join("");
+    menu.innerHTML = items.map(it => `<button class="menu-item" style="${it.danger ? "color:var(--danger);" : ""}">${it.label}</button>`).join("");
     menu.style.display = "block";
     menu.style.left = Math.min(e.clientX, window.innerWidth - 190) + "px";
     menu.style.top = Math.min(e.clientY, window.innerHeight - 260) + "px";
@@ -554,11 +545,11 @@
     const opts = [];
     (function walk(parentId, depth) {
       (byParent[parentId] || []).forEach(f => {
-        opts.push(`<option value="${f.id}">${"&nbsp;&nbsp;".repeat(depth)}📁 ${escapeHtml(f.file_name)}</option>`);
+        opts.push(`<option value="${f.id}">${"&nbsp;&nbsp;".repeat(depth)}${escapeHtml(f.file_name)}</option>`);
         walk(f.id, depth + 1);
       });
     })(null, 0);
-    sel.innerHTML = `<option value="">📁 My Drive (root)</option>` + opts.join("");
+    sel.innerHTML = `<option value="">My Drive (root)</option>` + opts.join("");
   }
   async function submitMove() {
     const target = qs("#moveTarget").value;
@@ -689,7 +680,7 @@
     const body = qs("#adminBody");
     const res = await apiFetch("/api/admin/requests");
     const reqs = res ? await res.json() : [];
-    if (!reqs.length) { body.innerHTML = `<div class="empty"><div class="empty-icon">📭</div><h3>No pending requests</h3><p>New account requests will appear here.</p></div>`; return; }
+    if (!reqs.length) { body.innerHTML = `<div class="empty"><h3>No pending requests</h3><p>New account requests will appear here.</p></div>`; return; }
     body.innerHTML = reqs.map(r => `
       <div class="win-window" style="margin-bottom:8px;">
         <div class="modal-body" style="display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap;">
@@ -746,9 +737,6 @@
     hideAlert(qs("#settingsAlert"));
     qs("#setName").value = user?.name || "";
     qs("#setEmail").value = user?.email || "";
-    const img = qs("#profilePreview");
-    if (user?.profile_image) { img.src = `${API}/api/user/profile-image/${user.id}`; img.style.display = "block"; }
-    else { img.src = ""; img.style.display = "none"; }
     openModal("settingsModal");
   }
   async function submitName() {
@@ -779,19 +767,6 @@
     if (res && res.ok) { showAlert(qs("#settingsAlert"), "Password updated.", "success"); qs("#setCurPw").value = qs("#setNewPw").value = qs("#setNewPw2").value = ""; }
     else showAlert(qs("#settingsAlert"), d.detail || "Failed.");
   }
-  function onProfileFile() {
-    const f = qs("#profileFileInput").files[0];
-    if (!f) return;
-    const fd = new FormData(); fd.append("file", f);
-    apiFetch("/api/user/settings/profile-image", {method: "POST", body: fd}).then(async res => {
-      if (res && res.ok) { showAlert(qs("#settingsAlert"), "Profile image updated.", "success"); await loadMe(); openSettings(); }
-      else { const d = await res.json(); showAlert(qs("#settingsAlert"), d.detail || "Failed."); }
-    });
-  }
-  async function deleteProfileImage() {
-    const res = await apiFetch("/api/user/settings/profile-image", {method: "DELETE"});
-    if (res && res.ok) { showAlert(qs("#settingsAlert"), "Profile image removed.", "success"); await loadMe(); openSettings(); }
-  }
   function deleteAccount() {
     const password = qs("#delPw").value;
     if (!password) { showAlert(qs("#settingsAlert"), "Enter your password."); return; }
@@ -813,7 +788,6 @@
     qs("#btnRefresh").addEventListener("click", () => { if (mode === "admin") renderAdmin(); else loadFiles(); });
     qs("#searchInput").addEventListener("input", onSearchInput);
     qs("#fileInput").addEventListener("change", e => { uploadFiles(e.target.files); e.target.value = ""; });
-    qs("#profileFileInput").addEventListener("change", onProfileFile);
 
     qsa(".menu-item[data-mode]").forEach(b => b.addEventListener("click", () => {
       const m = b.dataset.mode;

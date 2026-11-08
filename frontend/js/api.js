@@ -46,15 +46,15 @@ function formatDateTime(iso) {
   return new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
-function fileEmoji(type) {
-  if (!type) return "📄";
-  if (type.startsWith("image/")) return "🖼️";
-  if (type.startsWith("video/")) return "🎬";
-  if (type.startsWith("audio/")) return "🎵";
-  if (type.includes("pdf")) return "📕";
-  if (type.includes("zip")||type.includes("tar")||type.includes("gz")) return "📦";
-  if (type.includes("text")||type.includes("json")) return "📝";
-  return "📄";
+function fileIconLabel(type) {
+  if (!type) return "FILE";
+  if (type.startsWith("image/")) return "IMG";
+  if (type.startsWith("video/")) return "VID";
+  if (type.startsWith("audio/")) return "AUD";
+  if (type.includes("pdf")) return "PDF";
+  if (type.includes("zip")||type.includes("tar")||type.includes("gz")) return "ZIP";
+  if (type.includes("text")||type.includes("json")) return "TXT";
+  return "FILE";
 }
 
 function escapeHtml(s) {

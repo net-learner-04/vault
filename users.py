@@ -2,8 +2,7 @@ import os
 import shutil
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.security import OAuth2PasswordRequestForm
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
@@ -13,7 +12,7 @@ import crypto
 import mailer
 from auth import create_access_token, get_current_user
 from config import (
-    UPLOAD_DIR, PROFILE_DIR, MAX_FAILED_LOGIN, LOCKOUT_MINUTES,
+    UPLOAD_DIR, MAX_FAILED_LOGIN, LOCKOUT_MINUTES,
     DORMANT_DAYS, ADMIN_USERNAME, ADMIN_PASSWORD, ADMIN_EMAIL, RECOVERY_KEY
 )
 from db import get_db
@@ -22,8 +21,6 @@ from schemas import (
     Token, UserResponse, UserUpdateName, UserUpdateEmail, UserUpdatePassword,
     UserDelete, UserVerifyPassword, AccountRequestCreate, PasswordResetConfirm,
 )
-
-os.makedirs(PROFILE_DIR, exist_ok=True)
 
 passwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -134,11 +131,6 @@ def update_name(db: Session, user: Users, new_name: str):
 
 def update_email(db: Session, user: Users, new_email: str):
     user.email = new_email
-    db.commit()
-
-
-def update_profile_image(db: Session, user: Users, image_path):
-    user.profile_image = image_path
     db.commit()
 
 
@@ -364,42 +356,6 @@ def change_password(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Current password is incorrect.")
     rewrap_user_dek(db, current_user, body.current_password, body.new_password)
     return {"message": "Password updated."}
-
-
-@router.post("/settings/profile-image")
-async def upload_profile_image(
-    file: UploadFile = File(...),
-    current_user: Users = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    allowed_types = {"image/jpeg", "image/png", "image/webp", "image/gif"}
-    if file.content_type not in allowed_types:
-        raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail="Only image files are allowed.")
-    ext = file.filename.rsplit(".", 1)[-1].lower()
-    filename = f"{current_user.id}_profile.{ext}"
-    file_path = os.path.join(PROFILE_DIR, filename)
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-    update_profile_image(db, current_user, file_path)
-    return {"message": "Profile image updated.", "path": f"/api/user/profile-image/{current_user.id}"}
-
-
-@router.delete("/settings/profile-image", status_code=status.HTTP_204_NO_CONTENT)
-def delete_profile_image(
-    current_user: Users = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    if current_user.profile_image and os.path.exists(current_user.profile_image):
-        os.remove(current_user.profile_image)
-    update_profile_image(db, current_user, None)
-
-
-@router.get("/profile-image/{user_id}")
-def get_profile_image(user_id: int, db: Session = Depends(get_db)):
-    user = get_user_by_id(db, user_id)
-    if not user or not user.profile_image or not os.path.exists(user.profile_image):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile image not found.")
-    return FileResponse(user.profile_image)
 
 
 @router.delete("/settings/delete", status_code=status.HTTP_204_NO_CONTENT)

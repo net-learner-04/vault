@@ -146,7 +146,6 @@ class UserResponse(BaseModel):
     locked_until: Optional[datetime] = None
     last_login: Optional[datetime] = None
     is_dormant: bool = False
-    profile_image: Optional[str] = None
     storage_limit: Optional[int] = None
 
     class Config:

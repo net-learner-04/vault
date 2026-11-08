@@ -6,8 +6,6 @@ load_dotenv()
 
 # Root directory where uploaded files are stored (override via UPLOAD_DIR env).
 UPLOAD_DIR: str = os.getenv("UPLOAD_DIR", "/mnt/storage/vault/uploads")
-# Subdirectory inside UPLOAD_DIR for profile images (auto-set).
-PROFILE_DIR: str = os.path.join(UPLOAD_DIR, "_profiles")
 
 
 # Username of the auto-created admin account.

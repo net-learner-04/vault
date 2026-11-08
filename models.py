@@ -15,7 +15,6 @@ class Users(Base):
     failed_login = Column(Integer, default=0, nullable=False)
     locked_until = Column(DateTime, nullable=True)
     last_login = Column(DateTime, nullable=True)
-    profile_image = Column(String, nullable=True)
     is_dormant = Column(Boolean, default=False, nullable=False)
     storage_limit = Column(BigInteger, nullable=True)
     # Encryption material for this user's files. The DEK is stored wrapped

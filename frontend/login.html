@@ -11,7 +11,7 @@
   <div class="auth-desktop">
     <div class="win-window auth-window">
       <div class="win-titlebar">
-        <span class="title-icon">🔑</span>
+        <img class="title-icon" src="icon.png" alt=""/>
         <span class="title-text">Sign In</span>
         <div class="win-title-controls">
           <button class="win-title-btn">_</button><button class="win-title-btn">□</button><button class="win-title-btn">✕</button>
@@ -49,7 +49,6 @@
       </div>
 
       <div class="modal-body" id="dormantSection" style="display:none;text-align:center;">
-        <div style="font-size:40px;margin-bottom:10px;">😴</div>
         <h1 class="auth-heading">Account Dormant</h1>
         <p class="auth-sub">Your account has been inactive and was placed in dormant status. Contact the administrator to reactivate it.</p>
         <button class="win-btn" onclick="showLogin()">← Back to sign in</button>
@@ -95,7 +94,7 @@
         auth.setToken(data.access_token);
         const meRes = await fetch(`${API}/api/user/me`, {headers:{Authorization:`Bearer ${data.access_token}`}});
         const me = await meRes.json();
-        auth.setUser({name: me.name, is_admin: me.is_admin, id: me.id, profile_image: me.profile_image});
+        auth.setUser({name: me.name, is_admin: me.is_admin, id: me.id});
         window.location.href = "dashboard.html";
       } else if (res.status === 403 && data.detail === "dormant") {
         document.getElementById("loginSection").style.display = "none";
