@@ -134,14 +134,6 @@ Three containers run together:
 - `caddy` — reverse proxy with automatic HTTPS (Let's Encrypt)
 - `duckdns` — keeps the dynamic DNS record up to date
 
-### DuckDNS without Docker (host cron)
-```bash
-chmod +x duckdns.sh
-crontab -e
-# add this line (updates every 5 minutes):
-*/5 * * * * /home/<user>/vault/duckdns.sh >/dev/null 2>&1
-```
-
 ---
 
 ## Running with systemd
