@@ -1,260 +1,111 @@
 # Vault
 
-A self-hosted private cloud storage server built with FastAPI and vanilla HTML/CSS/JS, styled after the classic Windows 98 desktop.
+개인용 셀프호스팅 클라우드 드라이브. Windows 98 레트로 UI + 사용자별 파일 암호화.
 
 ---
 
-## Tech Stack
+## 주요 기능
 
-- **Backend** — FastAPI, SQLAlchemy, SQLite
-- **Encryption** — AES-256 (per-user keys, `cryptography`)
-- **Auth** — JWT (python-jose), bcrypt
-- **Email** — SendGrid
-- **Frontend** — Vanilla HTML / CSS / JavaScript (Windows 98 theme)
-- **Reverse proxy** — Nginx
-- **Process manager** — systemd
-- **Security** — fail2ban, SELinux
+- 파일 업로드 / 다운로드 / 미리보기 (이미지·영상·PDF·텍스트)
+- **사용자별 암호화** — 관리자라도 다른 사용자 파일 열람 불가
+- 폴더 생성·이름변경·이동·복사, 폴더 ZIP 다운로드
+- 즐겨찾기, 휴지통(30일), 공유 링크, 검색, 다중 선택
+- 관리자 콘솔 (계정 요청 승인/거절, 사용자 관리)
 
 ---
 
-## Features
+## 사전 준비
 
-- File upload, download, preview (images, video, PDF, text) with HTTP range support
-- **Per-user encryption**: files are stored encrypted; even an administrator with full DB/disk access cannot read another user's files
-- Folder creation, renaming, moving and copying (including whole folder trees)
-- Folder download as ZIP
-- Starred files and trash bin (30-day auto-delete)
-- Shareable links with expiry, listing and revocation
-- Full-text filename search, grid/list view toggle, drag-and-drop upload
-- Email-based login with account lockout and dormant detection
-- Profile picture upload and account settings (integrated into the main dashboard)
-- Admin console (users, account requests, storage limits) integrated into the same dashboard
+1. **DuckDNS** 도메인 + 토큰 확보 (예: `vault.duckdns.org`)
+2. **공유기 포트포워딩**: 80, 443 → 서버 IP
+3. 서버에 Docker + Docker Compose 설치
 
 ---
 
-## Encryption model
-
-Each user has a random 256-bit Data Encryption Key (DEK). The DEK is stored in the
-database **wrapped with a key derived from the user's password** (PBKDF2 + AES-GCM),
-so it cannot be used without the password. Files are stream-encrypted on disk with
-AES-256-CTR (each file has its own random IV).
-
-Consequences of this zero-knowledge design:
-
-- An administrator cannot decrypt another user's files via the UI, the database, or the disk.
-- Changing your password (while logged in) re-wraps the same DEK, so your files stay readable.
-- A **forgot-password reset recovers the DEK via the server's admin recovery key** (`RECOVERY_KEY`),
-  then re-wraps it under the new password, so the user's files remain readable.
-
----
-
-## Project Structure
-
-```
-vault/
-├── main.py               Entry point + router registration
-├── config.py             App configuration
-├── auth.py               JWT auth + current user/DEK dependencies
-├── crypto.py             AES key wrapping + streaming file encryption
-├── db.py                 Database session + lightweight migrations
-├── models.py             SQLAlchemy models
-├── schemas.py            Pydantic schemas
-├── users.py              User router + CRUD + key management
-├── files.py              File router + service (upload/download/share/trash)
-├── admin.py              Admin router
-├── mailer.py             SendGrid email sender
-├── .env                  Secrets (not committed)
-└── frontend/
-    ├── index.html        Landing page
-    ├── login.html
-    ├── register.html
-    ├── reset_password.html
-    ├── dashboard.html    Unified drive + admin + settings app
-    ├── css/style.css     Windows 98 theme
-    └── js/api.js         Shared API/auth helpers
-```
-
----
-
-## Configuration
-
-Create a `.env` file in the project root before running.
-
-```env
-SECRET_KEY=your_random_secret_key
-RECOVERY_KEY=your_admin_recovery_key
-DATABASE_URL=sqlite:////absolute/path/to/data/account_info.db
-SENDGRID_API_KEY=SG.your_sendgrid_key
-ADMIN_PASSWORD=your_admin_password
-ADMIN_EMAIL=admin@example.com
-MAIL_FROM=noreply@example.com
-```
-
-Non-secret settings such as `MAX_ACCOUNT`, `UPLOAD_DIR`, `LOCKOUT_MINUTES`, and `DORMANT_DAYS` are managed in `config.py`.
-
----
-
-## Installation
+## 설치 (Rocky Linux 기준)
 
 ```bash
-# 1. Clone and enter the project directory
-cd /home/haruki/vault
+# 1) Docker CE 설치 (Rocky 9은 dnf의 docker가 Podman이라 공식 repo로 설치)
+sudo dnf install -y dnf-plugins-core
+sudo dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+sudo systemctl enable --now docker
 
-# 2. Set correct ownership on the database directory
-sudo chown haruki:haruki data/
+# 2) 코드 받기
+cd ~
+git clone https://github.com/net-learner-04/vault.git
+cd vault
 
-# 3. Run the setup script (installs packages and runs migrations)
-sudo bash setup1.sh
-```
-
-The admin account is created automatically on first startup using the credentials in `.env`.
-
----
-
-## Docker Deployment (recommended)
-
-### 1. Prerequisites
-- A DuckDNS domain (e.g. `vault.duckdns.org`) with its token.
-- Ports **80** and **443** forwarded on your router to this server.
-- Docker + Docker Compose installed on the server.
-
-### 2. Prepare environment
-```bash
+# 3) 환경설정
 cp .env.example .env
-# edit .env: fill SECRET_KEY, ADMIN_PASSWORD, DUCKDNS_TOKEN, etc.
-```
+nano .env        # 아래 표 참고해서 값 입력
 
-### 3. Start
-```bash
+# 4) 실행
 docker compose up -d --build
 ```
 
-Three containers run together:
-- `vault` — the FastAPI app (SQLite + uploads kept in the `vault_data` volume)
-- `caddy` — reverse proxy with automatic HTTPS (Let's Encrypt)
-- `duckdns` — keeps the dynamic DNS record up to date
+접속: `https://vault.duckdns.org`
+
+관리자 로그인: `.env`의 `ADMIN_EMAIL` + `ADMIN_PASSWORD`
 
 ---
 
-## Running with systemd
+## .env 설정
 
-Create `/etc/systemd/system/vault.service`:
+`.env.example`을 복사해서 사용하면 됩니다.
 
-```ini
-[Unit]
-Description=Vault FastAPI
-After=network.target
+| 변수 | 필수 | 설명 |
+|------|------|------|
+| `SECRET_KEY` | ✅ | JWT 서명용 랜덤값 (`openssl rand -hex 32`) |
+| `RECOVERY_KEY` | ⚠️ | 비번찾기 복구용 (없으면 `SECRET_KEY`로 대체) |
+| `ADMIN_PASSWORD` | ✅ | 관리자 비밀번호 |
+| `ADMIN_EMAIL` | ✅ | 관리자 로그인 이메일 |
+| `DATABASE_URL` | ✅ | Docker는 `sqlite:////data/vault.db` 그대로 |
+| `UPLOAD_DIR` | ✅ | Docker는 `/data/uploads` 그대로 |
+| `SENDGRID_API_KEY` | ❌ | 비번찾기 메일용 (안 써도 됨) |
+| `MAIL_FROM` | ❌ | 발신 이메일 |
+| `DUCKDNS_DOMAIN` | ✅ | 예: `vault.duckdns.org` |
+| `DUCKDNS_SUBDOMAINS` | ✅ | 예: `vault` |
+| `DUCKDNS_TOKEN` | ✅ | DuckDNS 토큰 |
+| `TZ` | ❌ | 시간대 (예: `Asia/Seoul`) |
 
-[Service]
-User=haruki
-WorkingDirectory=/home/haruki/vault
-ExecStart=/usr/local/bin/uvicorn main:app --host 127.0.0.1 --port 2926
-Restart=always
-RestartSec=3
+---
 
-[Install]
-WantedBy=multi-user.target
-```
+## 업데이트
 
 ```bash
-sudo systemctl daemon-reload
-sudo systemctl enable vault
-sudo systemctl start vault
+cd ~/vault
+git pull
+docker compose up -d --build
 ```
 
 ---
 
-## Nginx Configuration
-
-```nginx
-server {
-    listen 80;
-    server_name vault.duckdns.org;
-
-    client_max_body_size 2G;
-
-    location / {
-        proxy_pass http://127.0.0.1:2926;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_read_timeout 300;
-        proxy_connect_timeout 300;
-    }
-}
-```
-
-Enable Nginx to connect to local ports on Rocky Linux (SELinux):
+## 자주 쓰는 명령어
 
 ```bash
-sudo setsebool -P httpd_can_network_connect 1
-sudo systemctl restart nginx
+docker compose ps        # 상태 확인
+docker compose logs -f   # 로그
+docker compose down      # 중지
+docker compose up -d     # 시작
 ```
 
 ---
 
-## HTTPS
+## 프로젝트 구조 (간단히)
 
-```bash
-sudo dnf install certbot python3-certbot-nginx -y
-sudo certbot --nginx -d vault.duckdns.org
+```
+vault/
+├── main.py           # 진입점
+├── users.py          # 계정 API
+├── files.py          # 파일 API
+├── admin.py          # 관리자 API
+├── crypto.py         # 파일 암호화
+├── frontend/         # HTML/CSS/JS (Win98 테마)
+│   └── icon/         # 아이콘
+├── docker-compose.yml
+├── Caddyfile         # 자동 HTTPS
+└── .env.example
 ```
 
----
-
-## Security
-
-fail2ban is configured to automatically ban IPs that repeatedly scan for vulnerabilities.
-
-```bash
-# Check ban status
-sudo fail2ban-client status nginx-botscan
-
-# Manually unban an IP
-sudo fail2ban-client set nginx-botscan unbanip 1.2.3.4
-```
-
----
-
-## API Overview
-
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | /api/user/login | Sign in with email and password |
-| GET | /api/user/me | Get current user info |
-| POST | /api/user/password/reset-request | Send a password reset code |
-| POST | /api/user/password/reset | Reset password with code |
-| POST | /api/file/upload | Upload a file (encrypted at rest) |
-| GET | /api/file/list | List files in a folder |
-| GET | /api/file/search?q= | Search files by name |
-| GET | /api/file/folders | List all folders (for move/copy picker) |
-| GET | /api/file/stats | Storage usage and file count |
-| GET | /api/file/download/{id} | Download a file |
-| GET | /api/file/preview/{id} | Preview a file (range-capable) |
-| GET | /api/file/download-folder/{id} | Download a folder as ZIP |
-| PATCH | /api/file/rename/{id} | Rename a file or folder |
-| PATCH | /api/file/move | Move a file/folder |
-| POST | /api/file/copy | Copy a file/folder |
-| GET | /api/file/starred | List starred files |
-| GET | /api/file/trash | List trashed files |
-| PATCH | /api/file/star/{id} | Toggle star on a file |
-| DELETE | /api/file/delete/{id} | Move file to trash |
-| DELETE | /api/file/batch-delete | Move multiple files to trash |
-| PATCH | /api/file/trash/restore/{id} | Restore file from trash |
-| DELETE | /api/file/trash/permanent/{id} | Permanently delete a file |
-| DELETE | /api/file/trash/empty | Empty all trash |
-| POST | /api/file/share | Create a share link |
-| GET | /api/file/shares | List share links |
-| DELETE | /api/file/share/{token} | Revoke a share link |
-| GET | /api/admin/users | List all users (admin only) |
-| PATCH | /api/admin/users/{id}/storage-limit | Set per-user storage limit |
-| PATCH | /api/admin/users/{id}/lock | Lock a user account |
-| PATCH | /api/admin/users/{id}/unlock | Unlock a user account |
-| PATCH | /api/admin/users/{id}/dormant-unlock | Reactivate a dormant account |
-| DELETE | /api/admin/users/{id} | Delete a user |
-| GET | /api/admin/requests | List pending account requests |
-| POST | /api/admin/requests/{id}/approve | Approve a request |
-| DELETE | /api/admin/requests/{id}/reject | Reject a request |
-
-Full interactive API docs are available at `/docs` when the server is running.
+자세한 API는 실행 후 `https://vault.duckdns.org/docs` 에서 확인 가능.
