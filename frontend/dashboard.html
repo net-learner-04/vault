@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Vault Drive</title>
+  <link rel="icon" href="icon.png"/>
+  <link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+  <div class="desktop">
+    <div class="win-window app-window">
+      <div class="win-titlebar">
+        <img class="title-icon" src="icon.png" alt=""/>
+        <span class="title-text" id="winTitle">Vault Drive</span>
+        <div class="win-title-controls">
+          <button class="win-title-btn" id="btnMin" title="Minimize">_</button>
+          <button class="win-title-btn" id="btnMax" title="Maximize">□</button>
+          <button class="win-title-btn" id="btnClose" title="Sign out" onclick="auth.logout()">✕</button>
+        </div>
+      </div>
+
+      <div class="menubar"><span>File</span><span>Edit</span><span>View</span><span>Help</span></div>
+
+      <div class="toolbar">
+        <button class="win-btn win-btn-icon mobile-menu-btn" id="btnMenu" title="Menu">☰</button>
+        <button class="win-btn win-btn-icon" id="btnBack" title="Back">◀</button>
+        <button class="win-btn win-btn-icon" id="btnUp" title="Up">▲</button>
+        <div class="addressbar">
+          <input class="win-input" id="searchInput" placeholder="Search files..."/>
+        </div>
+        <button class="win-btn" id="btnNewFolder">📁 <span class="hide-mobile">New Folder</span></button>
+        <button class="win-btn" id="btnUpload">⬆ <span class="hide-mobile">Upload</span></button>
+        <button class="win-btn win-btn-icon" id="btnView" title="Toggle grid/list view">▤</button>
+        <button class="win-btn win-btn-icon" id="btnRefresh" title="Refresh">⟳</button>
+      </div>
+
+      <div class="app-body">
+        <aside class="sidebar" id="sidebar">
+          <button class="menu-item active" data-mode="drive"><span class="mi-icon">💾</span> My Drive</button>
+          <button class="menu-item" data-mode="starred"><span class="mi-icon">⭐</span> Starred</button>
+          <button class="menu-item" data-mode="trash"><span class="mi-icon">🗑️</span> Trash</button>
+          <button class="menu-item" data-mode="shares"><span class="mi-icon">🔗</span> Shared Links</button>
+          <div class="menu-sep"></div>
+          <button class="menu-item" data-mode="admin" id="navAdmin" style="display:none;"><span class="mi-icon">⚙️</span> Admin</button>
+          <button class="menu-item" data-mode="settings"><span class="mi-icon">👤</span> Settings</button>
+          <div class="menu-storage">
+            <div>Storage</div>
+            <div class="storage-bar"><div id="storageBarFill" style="width:0%"></div></div>
+            <div id="storageText">—</div>
+          </div>
+        </aside>
+
+        <main class="content" id="content">
+          <div class="content-head">
+            <div class="crumbs" id="crumbs"></div>
+          </div>
+          <div id="fileList" class="file-grid"></div>
+        </main>
+      </div>
+
+      <div class="statusbar">
+        <div class="status-pane" id="statusItems">0 items</div>
+        <div class="status-pane" id="statusUser"></div>
+      </div>
+    </div>
+  </div>
+
+  <input type="file" id="fileInput" multiple style="display:none"/>
+  <div id="dropZone" style="display:none;position:fixed;inset:0;z-index:800;background:rgba(0,0,0,0.35);align-items:center;justify-content:center;color:#fff;font-size:20px;font-weight:bold;">Drop files to upload</div>
+  <div id="sidebarBackdrop" class="sidebar-backdrop" style="display:none;" onclick="toggleSidebar(false)"></div>
+
+  <!-- MODALS -->
+  <div class="modal-overlay" id="newFolderModal">
+    <div class="win-window modal">
+      <div class="modal-header"><span class="title-text">New Folder</span><button class="win-title-btn" onclick="closeModal('newFolderModal')">✕</button></div>
+      <div class="modal-body">
+        <div class="form-row"><label>Folder name</label><input class="win-input" id="newFolderName" placeholder="New folder"/></div>
+        <div id="newFolderAlert" class="alert"></div>
+      </div>
+      <div class="modal-footer"><button class="win-btn" onclick="closeModal('newFolderModal')">Cancel</button><button class="win-btn win-btn-primary" onclick="submitNewFolder()">Create</button></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="renameModal">
+    <div class="win-window modal">
+      <div class="modal-header"><span class="title-text">Rename</span><button class="win-title-btn" onclick="closeModal('renameModal')">✕</button></div>
+      <div class="modal-body">
+        <div class="form-row"><label>New name</label><input class="win-input" id="renameName"/></div>
+        <div id="renameAlert" class="alert"></div>
+      </div>
+      <div class="modal-footer"><button class="win-btn" onclick="closeModal('renameModal')">Cancel</button><button class="win-btn win-btn-primary" onclick="submitRename()">Rename</button></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="moveModal">
+    <div class="win-window modal">
+      <div class="modal-header"><span class="title-text" id="moveTitle">Move</span><button class="win-title-btn" onclick="closeModal('moveModal')">✕</button></div>
+      <div class="modal-body">
+        <div class="form-row"><label>Destination folder</label><select class="win-select" id="moveTarget"></select></div>
+        <div id="moveAlert" class="alert"></div>
+      </div>
+      <div class="modal-footer"><button class="win-btn" onclick="closeModal('moveModal')">Cancel</button><button class="win-btn win-btn-primary" id="moveSubmitBtn" onclick="submitMove()">Move Here</button></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="shareModal">
+    <div class="win-window modal">
+      <div class="modal-header"><span class="title-text">Share Link</span><button class="win-title-btn" onclick="closeModal('shareModal')">✕</button></div>
+      <div class="modal-body">
+        <div class="form-row" style="margin-bottom:8px;">
+          <label>Expires after (hours)</label>
+          <input class="win-input" type="number" id="shareExpire" value="24" min="1"/>
+        </div>
+        <div id="shareAlert" class="alert"></div>
+        <div id="shareResult" style="display:none;">
+          <div class="form-row" style="margin-bottom:8px;">
+            <label>Shareable link</label>
+            <input class="win-input" id="shareUrl" readonly onfocus="this.select()"/>
+          </div>
+          <button class="win-btn win-btn-sm" onclick="navigator.clipboard.writeText(document.getElementById('shareUrl').value)">📋 Copy</button>
+        </div>
+      </div>
+      <div class="modal-footer"><button class="win-btn" onclick="closeModal('shareModal')">Close</button><button class="win-btn win-btn-primary" id="shareCreateBtn" onclick="submitShare()">Create Link</button></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="previewModal">
+    <div class="win-window modal modal-lg">
+      <div class="modal-header"><span class="title-text" id="previewTitle">Preview</span><button class="win-title-btn" onclick="closeModal('previewModal')">✕</button></div>
+      <div class="modal-body" id="previewBody" style="max-height:72vh;overflow:auto;text-align:center;"></div>
+      <div class="modal-footer">
+        <a id="previewDownload" class="win-btn" href="#" download>⬇ Download</a>
+        <button class="win-btn" onclick="closeModal('previewModal')">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="confirmModal">
+    <div class="win-window modal">
+      <div class="modal-header"><span class="title-text">Confirm</span><button class="win-title-btn" onclick="closeModal('confirmModal')">✕</button></div>
+      <div class="modal-body"><p id="confirmText" style="font-size:12px;">Are you sure?</p></div>
+      <div class="modal-footer"><button class="win-btn" onclick="closeModal('confirmModal')">Cancel</button><button class="win-btn win-btn-danger" id="confirmOkBtn" onclick="confirmAction()">OK</button></div>
+    </div>
+  </div>
+
+
+  <div class="modal-overlay" id="settingsModal">
+    <div class="win-window modal modal-lg">
+      <div class="modal-header"><span class="title-text">Account Settings</span><button class="win-title-btn" onclick="closeModal('settingsModal')">✕</button></div>
+      <div class="modal-body" style="max-height:70vh;overflow:auto;">
+        <fieldset class="win-fieldset"><legend>Profile image</legend>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <img id="profilePreview" src="" alt="" style="width:48px;height:48px;display:none;background:#fff;box-shadow:inset -1px -1px 0 #fff, inset 1px 1px 0 #808080;"/>
+            <input type="file" id="profileFileInput" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none"/>
+            <button class="win-btn win-btn-sm" onclick="document.getElementById('profileFileInput').click()">Upload image</button>
+            <button class="win-btn win-btn-sm" onclick="deleteProfileImage()">Remove</button>
+          </div>
+        </fieldset>
+
+        <fieldset class="win-fieldset"><legend>Change username</legend>
+          <div class="form-stack">
+            <input class="win-input" id="setName" placeholder="New username"/>
+            <input class="win-input" type="password" id="setNamePw" placeholder="Current password"/>
+            <button class="win-btn" onclick="submitName()">Update username</button>
+          </div>
+        </fieldset>
+
+        <fieldset class="win-fieldset"><legend>Change email</legend>
+          <div class="form-stack">
+            <input class="win-input" id="setEmail" placeholder="New email"/>
+            <input class="win-input" type="password" id="setEmailPw" placeholder="Current password"/>
+            <button class="win-btn" onclick="submitEmail()">Update email</button>
+          </div>
+        </fieldset>
+
+        <fieldset class="win-fieldset"><legend>Change password</legend>
+          <div class="form-stack">
+            <input class="win-input" type="password" id="setCurPw" placeholder="Current password"/>
+            <input class="win-input" type="password" id="setNewPw" placeholder="New password"/>
+            <input class="win-input" type="password" id="setNewPw2" placeholder="Confirm new password"/>
+            <button class="win-btn" onclick="submitPassword()">Update password</button>
+          </div>
+        </fieldset>
+
+        <fieldset class="win-fieldset"><legend>Danger zone</legend>
+          <input class="win-input" type="password" id="delPw" placeholder="Confirm password to delete account"/>
+          <button class="win-btn win-btn-danger" style="margin-top:8px;" onclick="deleteAccount()">Delete my account</button>
+        </fieldset>
+
+        <div id="settingsAlert" class="alert"></div>
+      </div>
+      <div class="modal-footer"><button class="win-btn" onclick="closeModal('settingsModal')">Close</button></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="storageModal">
+    <div class="win-window modal">
+      <div class="modal-header"><span class="title-text">Set Storage Limit</span><button class="win-title-btn" onclick="closeModal('storageModal')">✕</button></div>
+      <div class="modal-body">
+        <p id="storageTargetName" style="font-size:12px;margin-bottom:6px;"></p>
+        <div class="form-row"><label>Limit in GB (empty = unlimited)</label><input class="win-input" type="number" id="storageLimitInput" min="0" step="0.1"/></div>
+        <div id="storageAlert" class="alert"></div>
+      </div>
+      <div class="modal-footer"><button class="win-btn" onclick="closeModal('storageModal')">Cancel</button><button class="win-btn win-btn-primary" onclick="submitStorageLimit()">Apply</button></div>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script>
+  // ---- State ---------------------------------------------------------------
+  let user = null;
+  let mode = "drive";
+  let view = localStorage.getItem("vault_view") || "grid";
+  let currentFolderId = null;
+  let breadcrumb = [];
+  let files = [];
+  let selected = new Set();
+  let ctxFile = null;
+  let confirmCallback = null;
+  let moveAction = "move";
+  let moveFileId = null;
+  let shareFileId = null;
+  let adminTab = "users";
+  let storageTargetId = null;
+
+  // ---- Modal helpers ------------------------------------------------------
+  function openModal(id) { qs("#" + id).classList.add("open"); }
+  function closeModal(id) { qs("#" + id).classList.remove("open"); }
+  function closeAllModals() { qsa(".modal-overlay").forEach(m => m.classList.remove("open")); }
+  function toggleSidebar(force) {
+    const sb = qs("#sidebar");
+    const show = force !== undefined ? force : !sb.classList.contains("open");
+    sb.classList.toggle("open", show);
+    qs("#sidebarBackdrop").style.display = show ? "block" : "none";
+  }
+
+  // ---- Boot ---------------------------------------------------------------
+  async function init() {
+    if (!auth.require()) return;
+    await loadMe();
+    bindEvents();
+    setMode("drive");
+  }
+
+  async function loadMe() {
+    const res = await apiFetch("/api/user/me");
+    if (!res) return;
+    user = await res.json();
+    auth.setUser({name: user.name, is_admin: user.is_admin, id: user.id, profile_image: user.profile_image});
+    qs("#winTitle").textContent = `Vault Drive - ${user.name}`;
+    qs("#statusUser").textContent = user.name + (user.is_admin ? " (Admin)" : "");
+    if (user.is_admin) qs("#navAdmin").style.display = "flex";
+    loadStats();
+  }
+
+  function setMode(m) {
+    mode = m;
+    qsa(".menu-item[data-mode]").forEach(b => b.classList.toggle("active", b.dataset.mode === m));
+    selected.clear();
+    currentFolderId = null;
+    breadcrumb = [];
+    if (m === "admin") renderAdmin();
+    else loadFiles();
+  }
+
+  // ---- Loading + rendering ------------------------------------------------
+  async function loadFiles() {
+    let res;
+    if (mode === "drive") res = await apiFetch(`/api/file/list${currentFolderId ? `?parent_id=${currentFolderId}` : ""}`);
+    else if (mode === "starred") res = await apiFetch("/api/file/starred");
+    else if (mode === "trash") res = await apiFetch("/api/file/trash");
+    else if (mode === "shares") res = await apiFetch("/api/file/shares");
+    if (!res) return;
+    files = await res.json();
+    renderFiles();
+    renderBreadcrumb();
+    loadStats();
+  }
+
+  function renderBreadcrumb() {
+    const c = qs("#crumbs");
+    if (mode !== "drive") { c.innerHTML = ""; return; }
+    let html = `<span class="crumb" onclick="goRoot()">My Drive</span>`;
+    breadcrumb.forEach((b, i) => {
+      html += ` <span class="crumb-sep">›</span> <span class="crumb" onclick="jumpTo(${i})">${escapeHtml(b.name)}</span>`;
+    });
+    c.innerHTML = html;
+  }
+
+  function renderFiles() {
+    const list = qs("#fileList");
+    list.className = "file-grid" + (view === "list" ? " list-view" : "");
+    if (mode === "shares") { renderShares(list); return; }
+    if (mode === "trash") { renderTrash(list); return; }
+    if (!files.length) { list.innerHTML = emptyHtml(); qs("#statusItems").textContent = "0 items"; return; }
+    const sorted = mode === "drive" ? [...files.filter(f => f.is_folder), ...files.filter(f => !f.is_folder)] : files;
+    list.innerHTML = sorted.map(f => view === "list" ? fileRowHtml(f) : fileTileHtml(f)).join("");
+    qs("#statusItems").textContent = `${files.length} item${files.length === 1 ? "" : "s"}`;
+  }
+
+  function fileTileHtml(f) {
+    const meta = f.is_folder ? "Folder" : formatSize(f.file_size);
+    return `<div class="file-tile" onclick="openFile(${f.id})" oncontextmenu="openCtx(event, ${f.id})">
+      <div class="file-thumb">${f.is_folder ? "📁" : fileEmoji(f.file_type)}</div>
+      <div class="file-name">${escapeHtml(f.file_name)}${f.is_starred ? " ⭐" : ""}</div>
+      <div class="file-meta">${meta}</div>
+    </div>`;
+  }
+
+  function fileRowHtml(f) {
+    const meta = f.is_folder ? "Folder" : formatSize(f.file_size);
+    return `<div class="file-row" onclick="openFile(${f.id})" oncontextmenu="openCtx(event, ${f.id})">
+      <div class="file-thumb">${f.is_folder ? "📁" : fileEmoji(f.file_type)}</div>
+      <div class="file-name">${escapeHtml(f.file_name)}${f.is_starred ? " ⭐" : ""}</div>
+      <div class="file-meta">${meta}</div>
+      <div class="file-meta">${formatDate(f.create_date)}</div>
+      <div class="file-meta">${f.file_type || ""}</div>
+    </div>`;
+  }
+
+  function renderTrash(list) {
+    if (!files.length) { list.innerHTML = emptyHtml(); qs("#statusItems").textContent = "0 items"; return; }
+    list.innerHTML = files.map(f => `
+      <div class="file-row">
+        <div class="file-thumb">${f.is_folder ? "📁" : fileEmoji(f.file_type)}</div>
+        <div class="file-name">${escapeHtml(f.file_name)}</div>
+        <div class="file-meta">${formatSize(f.file_size)}</div>
+        <div class="file-meta">${formatDate(f.deleted_at || f.create_date)}</div>
+        <div style="display:flex;gap:4px;justify-content:flex-end;">
+          <button class="win-btn win-btn-sm" onclick="restoreFile(${f.id})">Restore</button>
+          <button class="win-btn win-btn-sm win-btn-danger" onclick="permanentDelete(${f.id})">Delete</button>
+        </div>
+      </div>`).join("");
+    qs("#statusItems").textContent = `${files.length} item${files.length === 1 ? "" : "s"}`;
+  }
+
+  function renderShares(list) {
+    if (!files.length) { list.innerHTML = emptyHtml(); qs("#statusItems").textContent = "0 links"; return; }
+    list.innerHTML = files.map(s => `
+      <div class="file-row">
+        <div class="file-thumb">🔗</div>
+        <div class="file-name">/shared/${escapeHtml(s.token.slice(0, 10))}…</div>
+        <div class="file-meta">expires ${formatDate(s.expire_at)}</div>
+        <div class="file-meta"></div>
+        <div style="display:flex;gap:4px;justify-content:flex-end;">
+          <button class="win-btn win-btn-sm" onclick="copyShare('${s.token}')">Copy</button>
+          <button class="win-btn win-btn-sm" onclick="openShared('${s.token}')">Open</button>
+          <button class="win-btn win-btn-sm win-btn-danger" onclick="revokeShare('${s.token}')">Revoke</button>
+        </div>
+      </div>`).join("");
+    qs("#statusItems").textContent = `${files.length} link${files.length === 1 ? "" : "s"}`;
+  }
+
+  function emptyHtml() {
+    const map = {
+      drive: ["🗂️", "This folder is empty", "Upload files or create a new folder"],
+      starred: ["⭐", "No starred files", "Star files to find them quickly"],
+      trash: ["🗑️", "Trash is empty", "Deleted files appear here for 30 days"],
+      shares: ["🔗", "No shared links", "Share a file to generate a link"]
+    };
+    const [icon, h, p] = map[mode] || map.drive;
+    return `<div class="empty"><div class="empty-icon">${icon}</div><h3>${h}</h3><p>${p}</p></div>`;
+  }
+
+  // ---- Navigation ---------------------------------------------------------
+  function enterFolder(id) {
+    const f = files.find(x => x.id === id);
+    breadcrumb.push({id, name: f ? f.file_name : ""});
+    currentFolderId = id;
+    loadFiles();
+  }
+  function goUp() {
+    if (mode !== "drive" || !breadcrumb.length) return;
+    breadcrumb.pop();
+    currentFolderId = breadcrumb.length ? breadcrumb[breadcrumb.length - 1].id : null;
+    loadFiles();
+  }
+  function goRoot() { breadcrumb = []; currentFolderId = null; loadFiles(); }
+  function jumpTo(i) { breadcrumb = breadcrumb.slice(0, i + 1); currentFolderId = breadcrumb[i].id; loadFiles(); }
+
+  // ---- Open / preview / download -----------------------------------------
+  function openFile(id) {
+    const f = files.find(x => x.id === id);
+    if (!f) return;
+    if (f.is_folder) { enterFolder(id); return; }
+    const t = f.file_type || "";
+    if (t.startsWith("image/") || t.startsWith("video/") || t === "application/pdf" || t.startsWith("text/")) openPreview(f);
+    else window.location.href = downloadUrl(id);
+  }
+
+  function openPreview(f) {
+    const t = f.file_type || "";
+    const url = mediaUrl(f.id);
+    qs("#previewTitle").textContent = f.file_name;
+    qs("#previewDownload").href = downloadUrl(f.id);
+    const body = qs("#previewBody");
+    if (t.startsWith("image/")) body.innerHTML = `<img src="${url}" style="max-width:100%;height:auto;"/>`;
+    else if (t.startsWith("video/")) body.innerHTML = `<video src="${url}" controls style="max-width:100%;"></video>`;
+    else if (t === "application/pdf") body.innerHTML = `<iframe src="${url}" style="width:100%;height:60vh;border:none;"></iframe>`;
+    else if (t.startsWith("text/")) fetch(url).then(r => r.text()).then(txt => { body.innerHTML = `<pre style="text-align:left;white-space:pre-wrap;">${escapeHtml(txt)}</pre>`; });
+    else body.innerHTML = `<p>No preview available.</p>`;
+    openModal("previewModal");
+  }
+
+  function toggleView() {
+    view = view === "grid" ? "list" : "grid";
+    localStorage.setItem("vault_view", view);
+    qs("#btnView").textContent = view === "grid" ? "▤" : "▦";
+    renderFiles();
+  }
+
+  // ---- Stats --------------------------------------------------------------
+  async function loadStats() {
+    const res = await apiFetch("/api/file/stats");
+    if (!res) return;
+    const s = await res.json();
+    const limit = s.storage_limit;
+    const pct = limit ? Math.min(100, Math.round(s.total_size / limit * 100)) : 0;
+    qs("#storageBarFill").style.width = (limit ? pct : 0) + "%";
+    qs("#storageText").textContent = limit ? `${formatSize(s.total_size)} / ${formatSize(limit)}` : `${formatSize(s.total_size)} used`;
+  }
+
+  // ---- Context menu -------------------------------------------------------
+  let renameFileId = null;
+
+  function buildCtxMenu() {
+    let menu = qs("#ctxMenu");
+    if (!menu) {
+      menu = document.createElement("div");
+      menu.id = "ctxMenu";
+      menu.className = "win-window";
+      menu.style.cssText = "position:fixed;z-index:850;min-width:170px;padding:3px;display:none;";
+      document.body.appendChild(menu);
+    }
+    return menu;
+  }
+
+  function openCtx(e, id) {
+    e.preventDefault();
+    e.stopPropagation();
+    ctxFile = files.find(x => x.id === id);
+    if (!ctxFile) return;
+    const items = [
+      {label: "Open", act: () => openFile(id)},
+      {label: "Download", act: () => { window.location.href = ctxFile.is_folder ? folderZipUrl(id) : downloadUrl(id); }},
+      {label: ctxFile.is_starred ? "Unstar" : "Star", act: () => toggleStar(id)},
+      {label: "Rename", act: () => openRename(id)},
+    ];
+    if (!ctxFile.is_folder) items.push({label: "Share", act: () => openShare(id)});
+    items.push({label: "Move", act: () => openMove(id)});
+    items.push({label: "Copy", act: () => openCopy(id)});
+    items.push({label: "Delete", act: () => deleteItem(id), danger: true});
+
+    const menu = buildCtxMenu();
+    menu.innerHTML = items.map(it => `<button class="menu-item" style="${it.danger ? "color:var(--danger);" : ""}"><span class="mi-icon">•</span>${it.label}</button>`).join("");
+    menu.style.display = "block";
+    menu.style.left = Math.min(e.clientX, window.innerWidth - 190) + "px";
+    menu.style.top = Math.min(e.clientY, window.innerHeight - 260) + "px";
+    qsa(".menu-item", menu).forEach((b, i) => b.addEventListener("click", () => { closeCtx(); items[i].act(); }));
+    setTimeout(() => document.addEventListener("click", closeCtx, {once: true}), 0);
+  }
+  function closeCtx() { const m = qs("#ctxMenu"); if (m) m.style.display = "none"; }
+
+  // ---- New folder / rename ------------------------------------------------
+  function openNewFolder() {
+    hideAlert(qs("#newFolderAlert"));
+    qs("#newFolderName").value = "";
+    openModal("newFolderModal");
+    setTimeout(() => qs("#newFolderName").focus(), 50);
+  }
+  async function submitNewFolder() {
+    const name = qs("#newFolderName").value.trim();
+    if (!name) { showAlert(qs("#newFolderAlert"), "Enter a folder name."); return; }
+    const res = await apiFetch("/api/file/folder", {method: "POST", body: JSON.stringify({folder_name: name, parent_id: currentFolderId})});
+    if (res && res.ok) { closeModal("newFolderModal"); toast("Folder created.", "success"); loadFiles(); }
+    else { const d = await res.json(); showAlert(qs("#newFolderAlert"), d.detail || "Failed."); }
+  }
+
+  function openRename(id) {
+    const f = files.find(x => x.id === id);
+    if (!f) return;
+    hideAlert(qs("#renameAlert"));
+    qs("#renameName").value = f.file_name;
+    renameFileId = id;
+    openModal("renameModal");
+    setTimeout(() => qs("#renameName").select(), 50);
+  }
+  async function submitRename() {
+    const name = qs("#renameName").value.trim();
+    if (!name) { showAlert(qs("#renameAlert"), "Enter a name."); return; }
+    const res = await apiFetch(`/api/file/rename/${renameFileId}`, {method: "PATCH", body: JSON.stringify({new_name: name})});
+    if (res && res.ok) { closeModal("renameModal"); toast("Renamed.", "success"); loadFiles(); }
+    else { const d = await res.json(); showAlert(qs("#renameAlert"), d.detail || "Failed."); }
+  }
+
+  // ---- Star / delete ------------------------------------------------------
+  async function toggleStar(id) {
+    const res = await apiFetch(`/api/file/star/${id}`, {method: "PATCH"});
+    if (res && res.ok) loadFiles();
+  }
+  function deleteItem(id) {
+    const f = files.find(x => x.id === id);
+    confirmText(`Delete "${f ? f.file_name : "item"}"?`, async () => {
+      const res = await apiFetch(`/api/file/delete/${id}`, {method: "DELETE"});
+      if (res && res.ok) { toast("Moved to trash.", "success"); loadFiles(); }
+    });
+  }
+  function restoreFile(id) {
+    apiFetch(`/api/file/trash/restore/${id}`, {method: "PATCH"}).then(res => { if (res && res.ok) { toast("Restored.", "success"); loadFiles(); } });
+  }
+  function permanentDelete(id) {
+    confirmText("Permanently delete this item? This cannot be undone.", async () => {
+      const res = await apiFetch(`/api/file/trash/permanent/${id}`, {method: "DELETE"});
+      if (res && res.ok) { toast("Deleted.", "success"); loadFiles(); }
+    });
+  }
+
+  function confirmText(text, cb) {
+    qs("#confirmText").textContent = text;
+    confirmCallback = cb;
+    openModal("confirmModal");
+  }
+  function confirmAction() {
+    const cb = confirmCallback;
+    closeModal("confirmModal");
+    confirmCallback = null;
+    if (cb) cb();
+  }
+
+  // ---- Move / copy --------------------------------------------------------
+  async function openMove(id) {
+    moveAction = "move"; moveFileId = id;
+    qs("#moveTitle").textContent = "Move";
+    qs("#moveSubmitBtn").textContent = "Move Here";
+    hideAlert(qs("#moveAlert"));
+    await loadFolderOptions();
+    openModal("moveModal");
+  }
+  async function openCopy(id) {
+    moveAction = "copy"; moveFileId = id;
+    qs("#moveTitle").textContent = "Copy";
+    qs("#moveSubmitBtn").textContent = "Copy Here";
+    hideAlert(qs("#moveAlert"));
+    await loadFolderOptions();
+    openModal("moveModal");
+  }
+  async function loadFolderOptions() {
+    const sel = qs("#moveTarget");
+    const res = await apiFetch("/api/file/folders");
+    const folders = res ? await res.json() : [];
+    const byParent = {};
+    folders.forEach(f => { (byParent[f.parent_id] = byParent[f.parent_id] || []).push(f); });
+    const opts = [];
+    (function walk(parentId, depth) {
+      (byParent[parentId] || []).forEach(f => {
+        opts.push(`<option value="${f.id}">${"&nbsp;&nbsp;".repeat(depth)}📁 ${escapeHtml(f.file_name)}</option>`);
+        walk(f.id, depth + 1);
+      });
+    })(null, 0);
+    sel.innerHTML = `<option value="">📁 My Drive (root)</option>` + opts.join("");
+  }
+  async function submitMove() {
+    const target = qs("#moveTarget").value;
+    const newParentId = target === "" ? null : parseInt(target, 10);
+    const res = await apiFetch(`/api/file/${moveAction}`, {
+      method: moveAction === "move" ? "PATCH" : "POST",
+      body: JSON.stringify({file_id: moveFileId, new_parent_id: newParentId})
+    });
+    if (res && res.ok) { closeModal("moveModal"); toast(moveAction === "move" ? "Moved." : "Copied.", "success"); loadFiles(); }
+    else { const d = await res.json(); showAlert(qs("#moveAlert"), d.detail || "Failed."); }
+  }
+
+  // ---- Share --------------------------------------------------------------
+  function openShare(id) {
+    shareFileId = id;
+    hideAlert(qs("#shareAlert"));
+    qs("#shareResult").style.display = "none";
+    qs("#shareExpire").value = "24";
+    qs("#shareCreateBtn").style.display = "";
+    openModal("shareModal");
+  }
+  async function submitShare() {
+    const hours = parseInt(qs("#shareExpire").value, 10) || 24;
+    const res = await apiFetch("/api/file/share", {method: "POST", body: JSON.stringify({file_id: shareFileId, expire_hours: hours})});
+    const d = await res.json();
+    if (res && res.ok) {
+      qs("#shareCreateBtn").style.display = "none";
+      qs("#shareResult").style.display = "block";
+      qs("#shareUrl").value = `${API}${d.url}`;
+    } else {
+      showAlert(qs("#shareAlert"), d.detail || "Failed.");
+    }
+  }
+  function copyShare(token) {
+    navigator.clipboard.writeText(`${API}/api/file/shared/${token}`).then(() => toast("Link copied.", "success"));
+  }
+  function openShared(token) { window.open(`${API}/api/file/shared/${token}`, "_blank"); }
+  async function revokeShare(token) {
+    const res = await apiFetch(`/api/file/share/${token}`, {method: "DELETE"});
+    if (res && res.ok) { toast("Link revoked.", "success"); loadFiles(); }
+  }
+
+  // ---- Upload / search ----------------------------------------------------
+  function openUpload() { qs("#fileInput").click(); }
+  async function uploadFiles(fileList) {
+    if (!fileList || !fileList.length) return;
+    for (const f of fileList) {
+      const fd = new FormData();
+      fd.append("file", f);
+      const url = `/api/file/upload${currentFolderId ? `?parent_id=${currentFolderId}` : ""}`;
+      const res = await apiFetch(url, {method: "POST", body: fd});
+      if (res && !res.ok) { const d = await res.json().catch(() => ({})); toast(d.detail || `Failed to upload ${f.name}`, "error"); }
+    }
+    toast("Upload complete.", "success");
+    loadFiles();
+  }
+
+  let searchTimer = null;
+  function onSearchInput() {
+    clearTimeout(searchTimer);
+    const q = qs("#searchInput").value.trim();
+    searchTimer = setTimeout(async () => {
+      if (!q) { loadFiles(); return; }
+      const res = await apiFetch(`/api/file/search?q=${encodeURIComponent(q)}`);
+      if (!res) return;
+      files = await res.json();
+      renderFiles();
+      qs("#crumbs").innerHTML = `<span class="crumb">Search results</span>`;
+    }, 250);
+  }
+
+  // ---- Admin --------------------------------------------------------------
+  async function renderAdmin() {
+    qs("#crumbs").innerHTML = `<span class="crumb">Admin Console</span>`;
+    const list = qs("#fileList");
+    list.className = "";
+    list.innerHTML = `
+      <div class="win-tabs">
+        <button class="win-tab ${adminTab === "users" ? "active" : ""}" onclick="setAdminTab('users')">Users</button>
+        <button class="win-tab ${adminTab === "requests" ? "active" : ""}" onclick="setAdminTab('requests')">Account Requests</button>
+      </div>
+      <div id="adminBody"></div>`;
+    qs("#statusItems").textContent = "Admin";
+    if (adminTab === "users") loadUsers(); else loadRequests();
+  }
+  function setAdminTab(t) { adminTab = t; renderAdmin(); }
+
+  async function loadUsers() {
+    const body = qs("#adminBody");
+    const [usersRes, cfgRes] = await Promise.all([apiFetch("/api/admin/users"), apiFetch("/api/admin/config")]);
+    if (!usersRes) return;
+    const users = await usersRes.json();
+    const cfg = cfgRes ? await cfgRes.json() : {max_account: 0};
+    const slots = Math.max(0, cfg.max_account - users.filter(u => !u.is_admin).length);
+    body.innerHTML = `
+      <div style="margin-bottom:10px;font-size:12px;">${slots} of ${cfg.max_account} member slots available</div>
+      <div class="win-table-wrap"><table class="win-table">
+        <thead><tr><th>User</th><th>Email</th><th>Role</th><th>Status</th><th>Last login</th><th>Actions</th></tr></thead>
+        <tbody>${users.map(u => adminUserRow(u)).join("")}</tbody>
+      </table></div>`;
+  }
+
+  function adminUserRow(u) {
+    const self = u.name === user?.name;
+    let status = `<span class="badge badge-active">Active</span>`;
+    if (u.is_dormant) status = `<span class="badge badge-dormant">Dormant</span>`;
+    if (u.locked_until && new Date(u.locked_until) > new Date()) status = `<span class="badge badge-locked">Locked</span>`;
+    const role = u.is_admin ? `<span class="badge badge-admin">Admin</span>` : `<span class="badge badge-member">Member</span>`;
+    const actions = [];
+    if (!u.is_admin && !self) {
+      actions.push(`<button class="win-btn win-btn-sm" onclick="openStorageModal(${u.id},'${u.name.replace(/'/g, "\\'")}',${u.storage_limit || 'null'})">Limit</button>`);
+      if (u.is_dormant) actions.push(`<button class="win-btn win-btn-sm" onclick="adminDormantUnlock(${u.id})">Reactivate</button>`);
+      else if (u.locked_until && new Date(u.locked_until) > new Date()) actions.push(`<button class="win-btn win-btn-sm" onclick="adminUnlock(${u.id})">Unlock</button>`);
+      else actions.push(`<button class="win-btn win-btn-sm" onclick="adminLock(${u.id})">Lock</button>`);
+      actions.push(`<button class="win-btn win-btn-sm win-btn-danger" onclick="adminDeleteUser(${u.id},'${u.name.replace(/'/g, "\\'")}')">Delete</button>`);
+    }
+    return `<tr>
+      <td>${escapeHtml(u.name)}</td>
+      <td>${escapeHtml(u.email || "")}</td>
+      <td>${role}</td>
+      <td>${status}</td>
+      <td>${formatDateTime(u.last_login)}</td>
+      <td><div style="display:flex;gap:4px;justify-content:flex-end;flex-wrap:wrap;">${actions.join("")}</div></td>
+    </tr>`;
+  }
+
+  async function loadRequests() {
+    const body = qs("#adminBody");
+    const res = await apiFetch("/api/admin/requests");
+    const reqs = res ? await res.json() : [];
+    if (!reqs.length) { body.innerHTML = `<div class="empty"><div class="empty-icon">📭</div><h3>No pending requests</h3><p>New account requests will appear here.</p></div>`; return; }
+    body.innerHTML = reqs.map(r => `
+      <div class="win-window" style="margin-bottom:8px;">
+        <div class="modal-body" style="display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap;">
+          <div style="flex:1;min-width:200px;">
+            <div style="font-weight:bold;">${escapeHtml(r.name)}</div>
+            <div style="font-size:11px;color:var(--text-dim);">${escapeHtml(r.email)}</div>
+            ${r.message ? `<div style="font-size:11px;margin-top:4px;padding:4px;background:#fff;box-shadow:inset -1px -1px 0 #fff, inset 1px 1px 0 #808080;">${escapeHtml(r.message)}</div>` : ""}
+          </div>
+          <div style="display:flex;gap:6px;">
+            <button class="win-btn win-btn-sm" onclick="approveRequest(${r.id})">Approve</button>
+            <button class="win-btn win-btn-sm win-btn-danger" onclick="rejectRequest(${r.id})">Reject</button>
+          </div>
+        </div>
+      </div>`).join("");
+  }
+
+  async function approveRequest(id) {
+    const res = await apiFetch(`/api/admin/requests/${id}/approve`, {method: "POST"});
+    if (res && res.ok) { toast("Account approved.", "success"); loadRequests(); }
+    else { const d = await res.json(); toast(d.detail || "Failed.", "error"); }
+  }
+  async function rejectRequest(id) {
+    const res = await apiFetch(`/api/admin/requests/${id}/reject`, {method: "DELETE"});
+    if (res && res.ok) { toast("Request rejected.", "success"); loadRequests(); }
+  }
+  async function adminLock(id) { await apiFetch(`/api/admin/users/${id}/lock`, {method: "PATCH"}); loadUsers(); }
+  async function adminUnlock(id) { await apiFetch(`/api/admin/users/${id}/unlock`, {method: "PATCH"}); loadUsers(); }
+  async function adminDormantUnlock(id) { await apiFetch(`/api/admin/users/${id}/dormant-unlock`, {method: "PATCH"}); loadUsers(); }
+  function adminDeleteUser(id, name) {
+    confirmText(`Delete user "${name}" and all their files?`, async () => {
+      const res = await apiFetch(`/api/admin/users/${id}`, {method: "DELETE"});
+      if (res && res.ok) { toast("User deleted.", "success"); loadUsers(); }
+    });
+  }
+  function openStorageModal(id, name, current) {
+    storageTargetId = id;
+    qs("#storageTargetName").textContent = `Set storage limit for "${name}"`;
+    qs("#storageLimitInput").value = current ? (current / 1073741824).toFixed(1) : "";
+    hideAlert(qs("#storageAlert"));
+    openModal("storageModal");
+  }
+  async function submitStorageLimit() {
+    const val = qs("#storageLimitInput").value.trim();
+    const limitGb = val === "" ? null : parseFloat(val);
+    if (val !== "" && (isNaN(limitGb) || limitGb <= 0)) { showAlert(qs("#storageAlert"), "Enter a valid number."); return; }
+    const params = limitGb !== null ? `?limit_gb=${limitGb}` : "?limit_gb=";
+    const res = await apiFetch(`/api/admin/users/${storageTargetId}/storage-limit${params}`, {method: "PATCH"});
+    if (res && res.ok) { closeModal("storageModal"); toast("Storage limit updated.", "success"); loadUsers(); }
+    else { const d = await res.json(); showAlert(qs("#storageAlert"), d.detail || "Failed."); }
+  }
+
+  // ---- Settings -----------------------------------------------------------
+  function openSettings() {
+    hideAlert(qs("#settingsAlert"));
+    qs("#setName").value = user?.name || "";
+    qs("#setEmail").value = user?.email || "";
+    const img = qs("#profilePreview");
+    if (user?.profile_image) { img.src = `${API}/api/user/profile-image/${user.id}`; img.style.display = "block"; }
+    else { img.src = ""; img.style.display = "none"; }
+    openModal("settingsModal");
+  }
+  async function submitName() {
+    const new_name = qs("#setName").value.trim();
+    const password = qs("#setNamePw").value;
+    const res = await apiFetch("/api/user/settings/name", {method: "PATCH", body: JSON.stringify({new_name, password})});
+    const d = await res.json();
+    if (res && res.ok) {
+      if (d.access_token) auth.setToken(d.access_token);
+      showAlert(qs("#settingsAlert"), "Username updated.", "success");
+      loadMe();
+    } else showAlert(qs("#settingsAlert"), d.detail || "Failed.");
+  }
+  async function submitEmail() {
+    const new_email = qs("#setEmail").value.trim();
+    const password = qs("#setEmailPw").value;
+    const res = await apiFetch("/api/user/settings/email", {method: "PATCH", body: JSON.stringify({new_email, password})});
+    const d = await res.json();
+    if (res && res.ok) showAlert(qs("#settingsAlert"), "Email updated.", "success");
+    else showAlert(qs("#settingsAlert"), d.detail || "Failed.");
+  }
+  async function submitPassword() {
+    const cur = qs("#setCurPw").value, np = qs("#setNewPw").value, np2 = qs("#setNewPw2").value;
+    if (!cur || !np || !np2) { showAlert(qs("#settingsAlert"), "Fill in all password fields."); return; }
+    if (np !== np2) { showAlert(qs("#settingsAlert"), "New passwords do not match."); return; }
+    const res = await apiFetch("/api/user/settings/password", {method: "PATCH", body: JSON.stringify({current_password: cur, new_password: np, new_password2: np2})});
+    const d = await res.json();
+    if (res && res.ok) { showAlert(qs("#settingsAlert"), "Password updated.", "success"); qs("#setCurPw").value = qs("#setNewPw").value = qs("#setNewPw2").value = ""; }
+    else showAlert(qs("#settingsAlert"), d.detail || "Failed.");
+  }
+  function onProfileFile() {
+    const f = qs("#profileFileInput").files[0];
+    if (!f) return;
+    const fd = new FormData(); fd.append("file", f);
+    apiFetch("/api/user/settings/profile-image", {method: "POST", body: fd}).then(async res => {
+      if (res && res.ok) { showAlert(qs("#settingsAlert"), "Profile image updated.", "success"); await loadMe(); openSettings(); }
+      else { const d = await res.json(); showAlert(qs("#settingsAlert"), d.detail || "Failed."); }
+    });
+  }
+  async function deleteProfileImage() {
+    const res = await apiFetch("/api/user/settings/profile-image", {method: "DELETE"});
+    if (res && res.ok) { showAlert(qs("#settingsAlert"), "Profile image removed.", "success"); await loadMe(); openSettings(); }
+  }
+  function deleteAccount() {
+    const password = qs("#delPw").value;
+    if (!password) { showAlert(qs("#settingsAlert"), "Enter your password."); return; }
+    confirmText("Delete your account and all files? This cannot be undone.", async () => {
+      const res = await apiFetch("/api/user/settings/delete", {method: "DELETE", body: JSON.stringify({password})});
+      if (res && res.ok) auth.logout();
+      else { const d = await res.json(); showAlert(qs("#settingsAlert"), d.detail || "Failed."); }
+    });
+  }
+
+  // ---- Events -------------------------------------------------------------
+  function bindEvents() {
+    qs("#btnMenu").addEventListener("click", () => toggleSidebar());
+    qs("#btnBack").addEventListener("click", () => { if (mode === "drive" && breadcrumb.length) goUp(); });
+    qs("#btnUp").addEventListener("click", goUp);
+    qs("#btnNewFolder").addEventListener("click", openNewFolder);
+    qs("#btnUpload").addEventListener("click", openUpload);
+    qs("#btnView").addEventListener("click", toggleView);
+    qs("#btnRefresh").addEventListener("click", () => { if (mode === "admin") renderAdmin(); else loadFiles(); });
+    qs("#searchInput").addEventListener("input", onSearchInput);
+    qs("#fileInput").addEventListener("change", e => { uploadFiles(e.target.files); e.target.value = ""; });
+    qs("#profileFileInput").addEventListener("change", onProfileFile);
+
+    qsa(".menu-item[data-mode]").forEach(b => b.addEventListener("click", () => {
+      const m = b.dataset.mode;
+      toggleSidebar(false);
+      if (m === "settings") openSettings();
+      else setMode(m);
+    }));
+
+    const dz = qs("#dropZone");
+    let dragDepth = 0;
+    window.addEventListener("dragenter", e => { e.preventDefault(); dragDepth++; dz.style.display = "flex"; });
+    window.addEventListener("dragleave", e => { e.preventDefault(); dragDepth--; if (dragDepth <= 0) { dragDepth = 0; dz.style.display = "none"; } });
+    window.addEventListener("dragover", e => e.preventDefault());
+    window.addEventListener("drop", e => { e.preventDefault(); dragDepth = 0; dz.style.display = "none"; if (e.dataTransfer.files.length) uploadFiles(e.dataTransfer.files); });
+
+    document.addEventListener("keydown", e => { if (e.key === "Escape") { closeCtx(); closeAllModals(); } });
+  }
+
+  init();
+
+
+  </script>
+</body>
+</html>

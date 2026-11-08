@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Sign In — Vault</title>
+  <link rel="icon" href="icon.png"/>
+  <link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+  <div class="auth-desktop">
+    <div class="win-window auth-window">
+      <div class="win-titlebar">
+        <span class="title-icon">🔑</span>
+        <span class="title-text">Sign In</span>
+        <div class="win-title-controls">
+          <button class="win-title-btn">_</button><button class="win-title-btn">□</button><button class="win-title-btn">✕</button>
+        </div>
+      </div>
+
+      <div class="modal-body" id="loginSection">
+        <div class="auth-brand">
+          <img class="brand-icon" src="icon.png" alt="" style="width:30px;height:30px;"/>
+          <div class="brand-name">Vault</div>
+        </div>
+        <h1 class="auth-heading">Welcome back</h1>
+        <p class="auth-sub">Sign in with your email address and password.</p>
+
+        <div id="alert" class="alert"></div>
+
+        <div class="form-stack">
+          <div class="form-row">
+            <label for="email">Email address</label>
+            <input class="win-input" type="email" id="email" placeholder="your@email.com" autocomplete="username"/>
+          </div>
+          <div class="form-row">
+            <label for="password">Password</label>
+            <input class="win-input" type="password" id="password" placeholder="••••••••" autocomplete="current-password"/>
+          </div>
+          <label style="display:flex;align-items:center;gap:6px;font-size:11px;">
+            <input type="checkbox" id="rememberEmail"/> Remember my email
+          </label>
+          <button class="win-btn win-btn-primary" id="loginBtn">Sign In</button>
+        </div>
+
+        <div class="auth-footer">
+          <a href="reset_password.html">Forgot password?</a> &nbsp;·&nbsp; <a href="register.html">Request access</a>
+        </div>
+      </div>
+
+      <div class="modal-body" id="dormantSection" style="display:none;text-align:center;">
+        <div style="font-size:40px;margin-bottom:10px;">😴</div>
+        <h1 class="auth-heading">Account Dormant</h1>
+        <p class="auth-sub">Your account has been inactive and was placed in dormant status. Contact the administrator to reactivate it.</p>
+        <button class="win-btn" onclick="showLogin()">← Back to sign in</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script>
+    if (auth.getToken()) window.location.href = "dashboard.html";
+
+    const alertEl = document.getElementById("alert");
+    const loginBtn = document.getElementById("loginBtn");
+    const emailInput = document.getElementById("email");
+    const rememberEmail = document.getElementById("rememberEmail");
+
+    const savedEmail = localStorage.getItem("vault_email");
+    if (savedEmail) { emailInput.value = savedEmail; rememberEmail.checked = true; }
+
+    function showLogin() {
+      document.getElementById("loginSection").style.display = "block";
+      document.getElementById("dormantSection").style.display = "none";
+    }
+
+    async function login() {
+      const email = emailInput.value.trim();
+      const password = document.getElementById("password").value;
+      if (!email || !password) { showAlert(alertEl, "Please fill in all fields."); return; }
+      if (rememberEmail.checked) localStorage.setItem("vault_email", email);
+      else localStorage.removeItem("vault_email");
+      loginBtn.disabled = true;
+      loginBtn.textContent = "Signing in...";
+      hideAlert(alertEl);
+
+      const res = await fetch(`${API}/api/user/login`, {
+        method: "POST",
+        headers: {"Content-Type": "application/x-www-form-urlencoded"},
+        body: new URLSearchParams({username: email, password})
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        auth.setToken(data.access_token);
+        const meRes = await fetch(`${API}/api/user/me`, {headers:{Authorization:`Bearer ${data.access_token}`}});
+        const me = await meRes.json();
+        auth.setUser({name: me.name, is_admin: me.is_admin, id: me.id, profile_image: me.profile_image});
+        window.location.href = "dashboard.html";
+      } else if (res.status === 403 && data.detail === "dormant") {
+        document.getElementById("loginSection").style.display = "none";
+        document.getElementById("dormantSection").style.display = "block";
+      } else {
+        showAlert(alertEl, data.detail || "Incorrect email or password.");
+        loginBtn.disabled = false;
+        loginBtn.textContent = "Sign In";
+      }
+    }
+
+    loginBtn.addEventListener("click", login);
+    document.addEventListener("keydown", e => {
+      if (e.key === "Enter" && document.getElementById("loginSection").style.display !== "none") login();
+    });
+  </script>
+</body>
+</html>

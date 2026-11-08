@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Request Access — Vault</title>
+  <link rel="icon" href="icon.png"/>
+  <link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+  <div class="auth-desktop">
+    <div class="win-window auth-window">
+      <div class="win-titlebar">
+        <span class="title-icon">📝</span>
+        <span class="title-text">Request Access</span>
+        <div class="win-title-controls">
+          <button class="win-title-btn">_</button><button class="win-title-btn">□</button><button class="win-title-btn">✕</button>
+        </div>
+      </div>
+
+      <div class="modal-body" id="formSection">
+        <div class="auth-brand">
+          <img class="brand-icon" src="icon.png" alt="" style="width:30px;height:30px;"/>
+          <div class="brand-name">Vault</div>
+        </div>
+        <h1 class="auth-heading">Request an account</h1>
+        <p class="auth-sub">Accounts are approved by an administrator.</p>
+
+        <div id="alert" class="alert"></div>
+
+        <div class="form-stack">
+          <div class="form-row">
+            <label for="regName">Username</label>
+            <input class="win-input" type="text" id="regName" placeholder="Choose a username" autocomplete="username"/>
+          </div>
+          <div class="form-row">
+            <label for="regEmail">Email address</label>
+            <input class="win-input" type="email" id="regEmail" placeholder="your@email.com"/>
+          </div>
+          <div class="form-row">
+            <label for="regPw1">Password</label>
+            <input class="win-input" type="password" id="regPw1" placeholder="Create a strong password" autocomplete="new-password"/>
+          </div>
+          <div class="form-row">
+            <label for="regPw2">Confirm password</label>
+            <input class="win-input" type="password" id="regPw2" placeholder="Repeat your password" autocomplete="new-password"/>
+          </div>
+          <div class="form-row">
+            <label for="regMsg">Message <span style="font-weight:normal;">(optional)</span></label>
+            <input class="win-input" type="text" id="regMsg" placeholder="Why do you need access?"/>
+          </div>
+          <button class="win-btn win-btn-primary" id="submitBtn">Submit Request</button>
+        </div>
+
+        <div class="auth-footer">Already have an account? <a href="login.html">Sign in</a></div>
+      </div>
+
+      <div class="modal-body" id="successSection" style="display:none;text-align:center;">
+        <div style="font-size:40px;margin-bottom:10px;">✅</div>
+        <h1 class="auth-heading">Request submitted</h1>
+        <p class="auth-sub">Your account request has been sent to the administrator. You can sign in once it is approved.</p>
+        <a href="login.html" class="win-btn win-btn-primary">Go to Sign In</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script>
+    if (auth.getToken()) window.location.href = "dashboard.html";
+
+    document.getElementById("submitBtn").addEventListener("click", async () => {
+      const name = document.getElementById("regName").value.trim();
+      const email = document.getElementById("regEmail").value.trim();
+      const pw1 = document.getElementById("regPw1").value;
+      const pw2 = document.getElementById("regPw2").value;
+      const msg = document.getElementById("regMsg").value.trim();
+      const a = document.getElementById("alert");
+
+      if (!name || !email || !pw1 || !pw2) { showAlert(a, "Please fill in all required fields."); return; }
+      if (pw1 !== pw2) { showAlert(a, "Passwords do not match."); return; }
+      if (pw1.length < 6) { showAlert(a, "Password must be at least 6 characters."); return; }
+
+      const btn = document.getElementById("submitBtn");
+      btn.textContent = "Submitting..."; btn.disabled = true; hideAlert(a);
+
+      const res = await apiFetch("/api/user/request", {
+        method: "POST",
+        body: JSON.stringify({name, email, passwd1: pw1, passwd2: pw2, message: msg || null})
+      });
+
+      if (res && (res.ok || res.status === 204)) {
+        document.getElementById("formSection").style.display = "none";
+        document.getElementById("successSection").style.display = "block";
+      } else {
+        const d = await res.json();
+        showAlert(a, d.detail || "Failed to submit request.");
+        btn.textContent = "Submit Request"; btn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

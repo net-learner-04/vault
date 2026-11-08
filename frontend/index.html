@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Vault</title>
+  <link rel="icon" href="icon.png"/>
+  <link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+  <div class="landing-desktop">
+    <div class="win-window landing-window">
+      <div class="win-titlebar">
+        <img class="title-icon" src="icon.png" alt=""/>
+        <span class="title-text">Vault — Private Cloud Drive</span>
+        <div class="win-title-controls">
+          <button class="win-title-btn" title="Minimize">_</button>
+          <button class="win-title-btn" title="Maximize">□</button>
+          <button class="win-title-btn" title="Close">✕</button>
+        </div>
+      </div>
+      <div class="landing-body">
+        <div class="landing-icon"><img src="icon.png" alt="" style="width:48px;height:48px;"/></div>
+        <h1 class="landing-title">Vault</h1>
+        <p class="landing-sub">Your private, per-user encrypted cloud storage.</p>
+        <div class="landing-actions">
+          <a href="login.html" class="win-btn win-btn-primary">Sign In</a>
+          <a href="register.html" class="win-btn">Request Access</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script>
+    if (auth.getToken()) window.location.href = "dashboard.html";
+  </script>
+</body>
+</html>
