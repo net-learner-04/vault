@@ -32,6 +32,7 @@
         <button class="win-btn" id="btnNewFolder">New Folder</button>
         <button class="win-btn" id="btnUpload">Upload</button>
         <button class="win-btn" id="btnSelect">Select</button>
+        <button class="win-btn" id="btnEmptyTrash" style="display:none;">Empty Trash</button>
         <button class="win-btn win-btn-icon" id="btnView" title="Toggle grid/list view">▤</button>
         <button class="win-btn win-btn-icon" id="btnRefresh" title="Refresh">⟳</button>
       </div>
@@ -270,6 +271,9 @@
     mode = m;
     qsa(".menu-item[data-mode]").forEach(b => b.classList.toggle("active", b.dataset.mode === m));
     resetSelection();
+    const inTrash = m === "trash";
+    qs("#btnSelect").style.display = inTrash ? "none" : "";
+    qs("#btnEmptyTrash").style.display = inTrash ? "" : "none";
     currentFolderId = null;
     breadcrumb = [];
     if (m === "admin") renderAdmin();
@@ -579,6 +583,12 @@
       if (res && res.ok) { toast("Deleted.", "success"); loadFiles(); }
     });
   }
+  function emptyTrash() {
+    confirmText("Permanently delete everything in the trash?", async () => {
+      const res = await apiFetch("/api/file/trash/empty", {method: "DELETE"});
+      if (res && res.ok) { toast("Trash emptied.", "success"); loadFiles(); }
+    });
+  }
 
   function confirmText(text, cb) {
     qs("#confirmText").textContent = text;
@@ -741,8 +751,8 @@
     if (u.locked_until && new Date(u.locked_until) > new Date()) status = `<span class="badge badge-locked">Locked</span>`;
     const role = u.is_admin ? `<span class="badge badge-admin">Admin</span>` : `<span class="badge badge-member">Member</span>`;
     const actions = [];
+    actions.push(`<button class="win-btn win-btn-sm" onclick="openStorageModal(${u.id},'${u.name.replace(/'/g, "\\'")}',${u.storage_limit || 'null'})">Limit</button>`);
     if (!u.is_admin && !self) {
-      actions.push(`<button class="win-btn win-btn-sm" onclick="openStorageModal(${u.id},'${u.name.replace(/'/g, "\\'")}',${u.storage_limit || 'null'})">Limit</button>`);
       if (u.is_dormant) actions.push(`<button class="win-btn win-btn-sm" onclick="adminDormantUnlock(${u.id})">Reactivate</button>`);
       else if (u.locked_until && new Date(u.locked_until) > new Date()) actions.push(`<button class="win-btn win-btn-sm" onclick="adminUnlock(${u.id})">Unlock</button>`);
       else actions.push(`<button class="win-btn win-btn-sm" onclick="adminLock(${u.id})">Lock</button>`);
@@ -867,6 +877,7 @@
     qs("#btnNewFolder").addEventListener("click", openNewFolder);
     qs("#btnUpload").addEventListener("click", openUpload);
     qs("#btnSelect").addEventListener("click", () => { if (selectMode) exitSelectMode(); else enterSelectMode(); });
+    qs("#btnEmptyTrash").addEventListener("click", emptyTrash);
     qs("#btnView").addEventListener("click", toggleView);
     qs("#btnRefresh").addEventListener("click", () => { if (mode === "admin") renderAdmin(); else loadFiles(); });
     qs("#searchInput").addEventListener("input", onSearchInput);
