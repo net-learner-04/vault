@@ -1,6 +1,8 @@
 # Vault
 
-A self-hosted private cloud drive with a Windows 98 retro UI and per-user file encryption.
+A self-hosted private cloud drive with a Windows 98 UI
+
+Icon Source : https://win98icons.alexmeub.com/
 
 ---
 
